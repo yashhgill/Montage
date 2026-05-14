@@ -67,7 +67,10 @@ export const services = [
       { src: "https://lh3.googleusercontent.com/d/15-L-mcPPF0MpLnDd5Xv3wyO6hFIMtvkz=s600", caption: "LED Wash Setup" },
       { src: "https://lh3.googleusercontent.com/d/1ilkumGGeY3JbGAOzSwVEUNf4nmv13uqB=s600", caption: "Live Sound Setup" },
     ],
-    videos: [],
+    videos: [
+      "https://customer-assets.emergentagent.com/job_occasion-desk/artifacts/ht452t66_document_6332483980037726243.mp4",
+      "https://customer-assets.emergentagent.com/job_occasion-desk/artifacts/xfkzbysn_document_6332483980037726245.mp4",
+    ],
     details: [
       { label: "Audio", value: "PA system, subwoofers, monitor speakers" },
       { label: "Lighting", value: "LED wash, moving heads, neon strobes" },
