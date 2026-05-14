@@ -102,7 +102,7 @@ export default function Hero() {
           {[
             ["500+", "Events Hosted"],
             ["29+", "Premium Clients"],
-            ["6", "Signature Services"],
+            ["7", "Signature Services"],
           ].map(([n, l]) => (
             <div key={l}>
               <p className="font-display font-black text-2xl sm:text-3xl text-white">{n}</p>

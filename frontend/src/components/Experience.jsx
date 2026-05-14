@@ -20,8 +20,8 @@ export default function Experience() {
           </h2>
         </div>
 
-        {/* Bento grid */}
-        <div className="grid grid-cols-2 md:grid-cols-4 auto-rows-[200px] sm:auto-rows-[240px] md:auto-rows-[270px] gap-4">
+        {/* Bento grid — 6 items fit a 3-col layout: 1 large (2×2) + 5 small = 9 cells = 3×3 */}
+        <div className="grid grid-cols-2 lg:grid-cols-3 auto-rows-[200px] sm:auto-rows-[240px] lg:auto-rows-[280px] gap-4">
           {experience.map((item, i) => (
             <article
               key={item.title}

@@ -15,7 +15,19 @@ if not BASE_URL:
     except Exception:
         pass
 
-ADMIN_TOKEN = "montage2026"
+ADMIN_TOKEN = "EnklMXgR3uc18Sm5QN0zqwE5qHw"
+OLD_ADMIN_TOKEN = "montage2026"
+
+
+class TestOldTokenRejected:
+    def test_old_token_verify_rejected(self):
+        r = requests.post(f"{BASE_URL}/api/admin/verify", json={"token": OLD_ADMIN_TOKEN})
+        assert r.status_code == 401
+
+    def test_old_token_admin_bookings_rejected(self):
+        r = requests.get(f"{BASE_URL}/api/admin/bookings",
+                         headers={"X-Admin-Token": OLD_ADMIN_TOKEN})
+        assert r.status_code == 401
 
 
 @pytest.fixture(scope="module")

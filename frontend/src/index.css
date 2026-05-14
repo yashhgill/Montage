@@ -189,10 +189,15 @@
 }
 
 /* Marquee track */
+@keyframes marquee-slide {
+    from { transform: translateX(0); }
+    to   { transform: translateX(-50%); }
+}
 .marquee-track {
     display: flex;
     width: max-content;
-    animation: marquee 60s linear infinite;
+    animation: marquee-slide 55s linear infinite;
+    will-change: transform;
 }
 .marquee-track:hover {
     animation-play-state: paused;

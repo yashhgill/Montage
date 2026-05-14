@@ -24,34 +24,36 @@ export default function Gallery() {
           </h2>
         </div>
 
-        {/* Videos row */}
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 mb-5">
-          {galleryVideos.map((v, i) => (
-            <button
-              key={v}
-              onClick={() => setLightbox({ type: "video", src: v })}
-              data-testid={`gallery-video-${i}`}
-              className="relative aspect-video rounded-xl overflow-hidden border border-white/10 bg-[#0A0A14] group"
-            >
-              <video
-                src={v}
-                muted
-                playsInline
-                preload="metadata"
-                className="absolute inset-0 w-full h-full object-cover opacity-70 group-hover:opacity-90 transition-opacity"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
-              <div className="absolute inset-0 grid place-items-center">
-                <div className="w-12 h-12 md:w-14 md:h-14 grid place-items-center rounded-full bg-neon-cyan/90 text-black neon-glow-cyan group-hover:scale-110 transition-transform">
-                  <Play size={20} className="ml-0.5" fill="black" />
+        {/* Videos row — only renders when videos are uploaded */}
+        {galleryVideos.length > 0 && (
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 mb-5">
+            {galleryVideos.map((v, i) => (
+              <button
+                key={v}
+                onClick={() => setLightbox({ type: "video", src: v })}
+                data-testid={`gallery-video-${i}`}
+                className="relative aspect-video rounded-xl overflow-hidden border border-white/10 bg-[#0A0A14] group"
+              >
+                <video
+                  src={v}
+                  muted
+                  playsInline
+                  preload="metadata"
+                  className="absolute inset-0 w-full h-full object-cover opacity-70 group-hover:opacity-90 transition-opacity"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
+                <div className="absolute inset-0 grid place-items-center">
+                  <div className="w-12 h-12 md:w-14 md:h-14 grid place-items-center rounded-full bg-neon-cyan/90 text-black neon-glow-cyan group-hover:scale-110 transition-transform">
+                    <Play size={20} className="ml-0.5" fill="black" />
+                  </div>
                 </div>
-              </div>
-              <p className="absolute bottom-2 left-3 right-3 text-[11px] uppercase tracking-[0.22em] text-white/85 font-bold">
-                Vibe Reel · 0{i + 1}
-              </p>
-            </button>
-          ))}
-        </div>
+                <p className="absolute bottom-2 left-3 right-3 text-[11px] uppercase tracking-[0.22em] text-white/85 font-bold">
+                  Vibe Reel · 0{i + 1}
+                </p>
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Photo masonry (CSS columns) */}
         <div className="columns-2 sm:columns-3 lg:columns-4 gap-3 md:gap-4 [column-fill:_balance]">

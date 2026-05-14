@@ -10,6 +10,13 @@ export const OWNER = "Mr. Jo";
 export const waLink = (msg) =>
   `https://wa.me/${PHONE}?text=${encodeURIComponent(msg)}`;
 
+// ─────────────────────────────────────────────────────────────
+// HOSTED VIDEOS
+// To add videos to a service, upload them to Emergent (drag-drop into the chat)
+// and paste the returned public URL into the `videos` array of the matching service.
+// The same applies for galleryVideos below.
+// ─────────────────────────────────────────────────────────────
+
 export const heroSlides = [
   "https://lh3.googleusercontent.com/d/1h-RMATR8EAVrFYK3LRiakW21TaPHcJzB",
   "https://lh3.googleusercontent.com/d/1cIT13xNVEXSNtM3a72agesX8P1vcl5SA",
@@ -28,12 +35,13 @@ export const services = [
       "Portable bar setups with customised cocktails and mocktails crafted for every crowd — from corporate dinners to birthday blowouts.",
     heroBg: "https://lh3.googleusercontent.com/d/1iYJRncYOiZ5xiLCB6IX1dxfRr2TCsnuV=s800",
     photos: [
-      { src: "https://lh3.googleusercontent.com/d/1iYJRncYOiZ5xiLCB6IX1dxfRr2TCsnuV=s600", caption: "Portable Bar Setup", type: "image" },
-      { src: "https://lh3.googleusercontent.com/d/1dbVDRHxKrrxkaOpLZqyoYc4HEtH6azE0=s600", caption: "Customised Cocktails", type: "image" },
-      { src: "https://lh3.googleusercontent.com/d/1B4GpPPxKlDiBWuC7HcBMkr0YQDOhGaSC=s600", caption: "Bar Service", type: "image" },
-      { src: "https://lh3.googleusercontent.com/d/1PFOgKGh1RDo6pxBt2gafrwdZRgZX7uOR=s600", caption: "Beverage Setup", type: "image" },
-      { src: "https://lh3.googleusercontent.com/d/1tlbgWTRqDThDwOSe9phDj8mZLBiqfiFl=s600", caption: "Drinks Station", type: "image" },
-    ],
+      "https://lh3.googleusercontent.com/d/1iYJRncYOiZ5xiLCB6IX1dxfRr2TCsnuV=s600",
+      "https://lh3.googleusercontent.com/d/1dbVDRHxKrrxkaOpLZqyoYc4HEtH6azE0=s600",
+      "https://lh3.googleusercontent.com/d/1B4GpPPxKlDiBWuC7HcBMkr0YQDOhGaSC=s600",
+      "https://lh3.googleusercontent.com/d/1PFOgKGh1RDo6pxBt2gafrwdZRgZX7uOR=s600",
+      "https://lh3.googleusercontent.com/d/1tlbgWTRqDThDwOSe9phDj8mZLBiqfiFl=s600",
+    ].map((src) => ({ src, caption: "Bar in Action" })),
+    videos: [], // Upload bar service videos and paste public URLs here
     details: [
       { label: "Bar Type", value: "Portable freestanding bar" },
       { label: "Cocktails", value: "Custom signature menu" },
@@ -51,10 +59,11 @@ export const services = [
       "Clear audio, punchy bass, LED washes, moving lights, and neon atmosphere — professional sound and lighting tuned for your crowd.",
     heroBg: "https://lh3.googleusercontent.com/d/1wgkkEOvsQ0I-iYgvX6yffn3TsqX1BoEs=s800",
     photos: [
-      { src: "https://lh3.googleusercontent.com/d/1wgkkEOvsQ0I-iYgvX6yffn3TsqX1BoEs=s600", caption: "Stage Lighting", type: "image" },
-      { src: "https://lh3.googleusercontent.com/d/15-L-mcPPF0MpLnDd5Xv3wyO6hFIMtvkz=s600", caption: "LED Wash Setup", type: "image" },
-      { src: "https://lh3.googleusercontent.com/d/1ilkumGGeY3JbGAOzSwVEUNf4nmv13uqB=s600", caption: "Live Sound Setup", type: "image" },
+      { src: "https://lh3.googleusercontent.com/d/1wgkkEOvsQ0I-iYgvX6yffn3TsqX1BoEs=s600", caption: "Stage Lighting" },
+      { src: "https://lh3.googleusercontent.com/d/15-L-mcPPF0MpLnDd5Xv3wyO6hFIMtvkz=s600", caption: "LED Wash Setup" },
+      { src: "https://lh3.googleusercontent.com/d/1ilkumGGeY3JbGAOzSwVEUNf4nmv13uqB=s600", caption: "Live Sound Setup" },
     ],
+    videos: [],
     details: [
       { label: "Audio", value: "PA system, subwoofers, monitor speakers" },
       { label: "Lighting", value: "LED wash, moving heads, neon strobes" },
@@ -65,50 +74,75 @@ export const services = [
   {
     key: "photo",
     no: "03",
-    title: "360° Photobooth & Videography",
-    short: "360 camera, photobooth setups, and professional videography that capture every moment.",
+    title: "360° Photobooth",
+    short: "360 camera platform with slow-mo videos and instant share links for every guest.",
     accent: "lime",
     subtitle:
-      "Guests step on the platform, the arm spins, and walk away with a slow-motion video. Plus professional event videography and classic photobooth prints.",
+      "Guests step on the platform, the arm spins, and walk away with a slow-motion video — instant share links, custom overlays, and classic photobooth prints for every table.",
     heroBg: "https://lh3.googleusercontent.com/d/19OlZJ5aaHsfA1dCiRdPXjZbP74gQpMAc=s800",
     photos: [
-      { src: "https://lh3.googleusercontent.com/d/19OlZJ5aaHsfA1dCiRdPXjZbP74gQpMAc=s600", caption: "360° Camera Platform", type: "image" },
-      { src: "https://lh3.googleusercontent.com/d/111mUih_vt35f2wpYp-yEumSwYaKvPnym=s600", caption: "Classic Photobooth", type: "image" },
-      { src: "https://lh3.googleusercontent.com/d/1UhymksIz19pCDLTK2C9-f1FvB1r0S-kP=s600", caption: "Guests in Action", type: "image" },
-      { src: "https://lh3.googleusercontent.com/d/1mYKtyu1sQV3LrWUJeKilX8CcRvtyyX61=s600", caption: "Photo Moment", type: "image" },
+      { src: "https://lh3.googleusercontent.com/d/19OlZJ5aaHsfA1dCiRdPXjZbP74gQpMAc=s600", caption: "360° Camera Platform" },
+      { src: "https://lh3.googleusercontent.com/d/111mUih_vt35f2wpYp-yEumSwYaKvPnym=s600", caption: "Classic Photobooth" },
+      { src: "https://lh3.googleusercontent.com/d/1UhymksIz19pCDLTK2C9-f1FvB1r0S-kP=s600", caption: "Guests in Action" },
+      { src: "https://lh3.googleusercontent.com/d/1mYKtyu1sQV3LrWUJeKilX8CcRvtyyX61=s600", caption: "Photo Moment" },
     ],
+    videos: [],
     details: [
       { label: "360° Booth", value: "Slow-mo video, instant share link" },
-      { label: "Videography", value: "Professional event coverage" },
       { label: "Photobooth", value: "Printed strips & digital copies" },
       { label: "Props", value: "Full prop kit included" },
+      { label: "Best For", value: "Birthdays, weddings, campus nights" },
+    ],
+  },
+  {
+    key: "videography",
+    no: "04",
+    title: "Video & Photography",
+    short: "Professional event videography, highlight reels, and on-the-night photography.",
+    accent: "orange",
+    subtitle:
+      "Professional event coverage — cinematic highlight videos, candid photography, drone shots, and same-day social media edits to make your event live online before guests leave.",
+    heroBg: "https://lh3.googleusercontent.com/d/1Vco4uBSaVIVqRtpEzN3DmXUkVt2gy_pQ=s800",
+    photos: [
+      { src: "https://lh3.googleusercontent.com/d/1Vco4uBSaVIVqRtpEzN3DmXUkVt2gy_pQ=s600", caption: "Event Coverage" },
+      { src: "https://lh3.googleusercontent.com/d/1otKHB7wvKdz1sHg6JtFik8ObyhAx7qrU=s600", caption: "Candid Photography" },
+      { src: "https://lh3.googleusercontent.com/d/1Sj-Ir-ITMYZhk_EK8Fo1OvasOJ-Quqjg=s600", caption: "Stage Coverage" },
+      { src: "https://lh3.googleusercontent.com/d/1lOzOXImTKaxyai58FUg6AnbDEEOYJlrB=s600", caption: "Cinematic Highlight" },
+    ],
+    videos: [],
+    details: [
+      { label: "Videography", value: "Multi-cam coverage, 4K edit" },
+      { label: "Photography", value: "Editorial-style stills, fast turnaround" },
+      { label: "Drone", value: "Aerial shots available on request" },
+      { label: "Best For", value: "Weddings, corporate, brand events" },
     ],
   },
   {
     key: "games",
-    no: "04",
+    no: "05",
     title: "Game Corners",
-    short: "Claw machine, arcade games, game stalls, and digital game stalls that keep guests moving.",
+    short: "Claw machines, arcade games, game stalls, and digital game stalls that keep guests moving.",
     accent: "cyan",
     subtitle:
       "Claw machines, arcade cabinets, physical game stalls, and digital game stalls — a full play area that keeps guests energised between music moments.",
     heroBg: "https://lh3.googleusercontent.com/d/1mfiejDVkkmmSEHAq9UeaXwpBdBQnJm-H=s800",
     photos: [
-      { src: "https://lh3.googleusercontent.com/d/1mfiejDVkkmmSEHAq9UeaXwpBdBQnJm-H=s600", caption: "Arcade Cabinets", type: "image" },
-      { src: "https://lh3.googleusercontent.com/d/1MB5S9gTIdb5VUYchcDaOl9yqd5cfdoeB=s600", caption: "Game Zone Layout", type: "image" },
-      { src: "https://lh3.googleusercontent.com/d/1_CeEy62rnOSEtVWpaZluj0PTUZZZDC3S=s600", caption: "Racing Simulator", type: "image" },
-      { src: "https://lh3.googleusercontent.com/d/1Q6nyJ7hWYtljKClUgZCBScuvO2JJd0He=s600", caption: "Claw Machine", type: "image" },
+      { src: "https://lh3.googleusercontent.com/d/1mfiejDVkkmmSEHAq9UeaXwpBdBQnJm-H=s600", caption: "Arcade Cabinets" },
+      { src: "https://lh3.googleusercontent.com/d/1MB5S9gTIdb5VUYchcDaOl9yqd5cfdoeB=s600", caption: "Game Zone Layout" },
+      { src: "https://lh3.googleusercontent.com/d/1_CeEy62rnOSEtVWpaZluj0PTUZZZDC3S=s600", caption: "Racing Simulator" },
+      { src: "https://lh3.googleusercontent.com/d/1Q6nyJ7hWYtljKClUgZCBScuvO2JJd0He=s600", caption: "Claw Machine" },
     ],
+    videos: [],
     details: [
       { label: "Arcade", value: "Classic & modern game cabinets" },
       { label: "Claw Machine", value: "Prize-filled, crowd favourite" },
-      { label: "Digital", value: "Touchscreen & VR options available" },
+      { label: "Digital", value: "Touchscreen & VR options" },
       { label: "Best For", value: "Corporate events, campus parties" },
     ],
   },
   {
     key: "entertainers",
-    no: "05",
+    no: "06",
     title: "Entertainers",
     short: "Clowns, magicians, and mascots that bring extra character to any celebration.",
     accent: "blue",
@@ -116,12 +150,13 @@ export const services = [
       "Live entertainment that works the room — clowns, magicians, and mascots bring personality, laughs, and unforgettable moments to any celebration.",
     heroBg: "https://lh3.googleusercontent.com/d/1SnFMVId0ij8CJt0QFeL5Ml-emjF9E5EU=s800",
     photos: [
-      { src: "https://lh3.googleusercontent.com/d/1mwdvf8Ei9MZdZz8NjIPICEV4VikpiiHm=s600", caption: "Family Entertainment", type: "image" },
-      { src: "https://lh3.googleusercontent.com/d/1690kKPjwwx9iMQYWcILxG3--B11ppVx5=s600", caption: "Carnival Activities", type: "image" },
-      { src: "https://lh3.googleusercontent.com/d/1aXWGZ-4PzIND26maIpp-L2PSYQYpMbo5=s600", caption: "Entertainer Moment", type: "image" },
-      { src: "https://lh3.googleusercontent.com/d/1jCKJyGENDWYrvGqdS44uoRdeZHswPty7=s600", caption: "Mascot Entertainment", type: "image" },
-      { src: "https://lh3.googleusercontent.com/d/1E8F2hJzTewAOXLJ3drKP_6BAJEveuWa5=s600", caption: "Live Character Moment", type: "image" },
+      { src: "https://lh3.googleusercontent.com/d/1mwdvf8Ei9MZdZz8NjIPICEV4VikpiiHm=s600", caption: "Family Entertainment" },
+      { src: "https://lh3.googleusercontent.com/d/1690kKPjwwx9iMQYWcILxG3--B11ppVx5=s600", caption: "Carnival Activities" },
+      { src: "https://lh3.googleusercontent.com/d/1aXWGZ-4PzIND26maIpp-L2PSYQYpMbo5=s600", caption: "Entertainer Moment" },
+      { src: "https://lh3.googleusercontent.com/d/1jCKJyGENDWYrvGqdS44uoRdeZHswPty7=s600", caption: "Mascot Entertainment" },
+      { src: "https://lh3.googleusercontent.com/d/1E8F2hJzTewAOXLJ3drKP_6BAJEveuWa5=s600", caption: "Live Character" },
     ],
+    videos: [],
     details: [
       { label: "Clown", value: "Balloon art, face painting, slapstick" },
       { label: "Magician", value: "Close-up & stage magic shows" },
@@ -131,7 +166,7 @@ export const services = [
   },
   {
     key: "planning",
-    no: "06",
+    no: "07",
     title: "Event Planning",
     short: "Tell Montage the date, crowd size, and theme. They help shape the setup around your event.",
     accent: "pink",
@@ -139,12 +174,13 @@ export const services = [
       "Tell Montage your date, crowd size, and theme. They shape the full setup — from layout and logistics to atmosphere and entertainment — around your vision.",
     heroBg: "https://lh3.googleusercontent.com/d/14Dpt9L0JRO5zNLxF8OYUbSLmCOEs4kKp=s800",
     photos: [
-      { src: "https://lh3.googleusercontent.com/d/1q3zCT1m9-VE2t_VR--eoxhG-OEjd6rTb=s600", caption: "Event Coordination", type: "image" },
-      { src: "https://lh3.googleusercontent.com/d/1j2z4YiDMQvw9WtQsq2zqUTM9cw5ecPs-=s600", caption: "Setup Day", type: "image" },
-      { src: "https://lh3.googleusercontent.com/d/14Dpt9L0JRO5zNLxF8OYUbSLmCOEs4kKp=s600", caption: "Full Event Package", type: "image" },
-      { src: "https://lh3.googleusercontent.com/d/1erkjTEnoit4l12XsFJHVtE6Bt05z8GCw=s600", caption: "Guest Experience", type: "image" },
-      { src: "https://lh3.googleusercontent.com/d/1JdleRHUZNn1PtMkqlGYV6_Af3of58aKr=s600", caption: "Event Flow", type: "image" },
+      { src: "https://lh3.googleusercontent.com/d/1q3zCT1m9-VE2t_VR--eoxhG-OEjd6rTb=s600", caption: "Event Coordination" },
+      { src: "https://lh3.googleusercontent.com/d/1j2z4YiDMQvw9WtQsq2zqUTM9cw5ecPs-=s600", caption: "Setup Day" },
+      { src: "https://lh3.googleusercontent.com/d/14Dpt9L0JRO5zNLxF8OYUbSLmCOEs4kKp=s600", caption: "Full Event Package" },
+      { src: "https://lh3.googleusercontent.com/d/1erkjTEnoit4l12XsFJHVtE6Bt05z8GCw=s600", caption: "Guest Experience" },
+      { src: "https://lh3.googleusercontent.com/d/1JdleRHUZNn1PtMkqlGYV6_Af3of58aKr=s600", caption: "Event Flow" },
     ],
+    videos: [],
     details: [
       { label: "Consultation", value: "Free WhatsApp planning session" },
       { label: "Setup", value: "Full crew on event day" },
@@ -154,23 +190,18 @@ export const services = [
   },
 ];
 
+// Experience zone — 6 cards in a 3-column bento for a perfect fit.
 export const experience = [
   { src: "https://lh3.googleusercontent.com/d/1mfiejDVkkmmSEHAq9UeaXwpBdBQnJm-H=s800", title: "Arcade Games", caption: "Retro competition and easy crowd energy.", large: true },
   { src: "https://lh3.googleusercontent.com/d/111mUih_vt35f2wpYp-yEumSwYaKvPnym=s600", title: "Photobooth", caption: "Instant keepsakes for every table." },
   { src: "https://lh3.googleusercontent.com/d/1_CeEy62rnOSEtVWpaZluj0PTUZZZDC3S=s600", title: "Racing Simulator", caption: "Fast laps for competitive guests." },
-  { src: "https://lh3.googleusercontent.com/d/1MB5S9gTIdb5VUYchcDaOl9yqd5cfdoeB=s600", title: "Game Zone", caption: "A full play area between music moments." },
   { src: "https://lh3.googleusercontent.com/d/1iYJRncYOiZ5xiLCB6IX1dxfRr2TCsnuV=s600", title: "Portable Bar Setup", caption: "Bartenders, cocktails, and beverage stations." },
   { src: "https://lh3.googleusercontent.com/d/1SnFMVId0ij8CJt0QFeL5Ml-emjF9E5EU=s600", title: "Kids Entertainment", caption: "Clowns, magicians, mascots, and inflatables." },
+  { src: "https://lh3.googleusercontent.com/d/1MB5S9gTIdb5VUYchcDaOl9yqd5cfdoeB=s600", title: "Full Game Zone", caption: "A play area between music moments." },
 ];
 
-export const galleryVideos = [
-  "https://customer-assets.emergentagent.com/job_439645a9-0386-42c3-861d-fde4b89b1822/artifacts/images/Event%20Vibes/document_6332483980037726236.mp4",
-  "https://customer-assets.emergentagent.com/job_439645a9-0386-42c3-861d-fde4b89b1822/artifacts/images/Event%20Vibes/document_6332483980037726237.mp4",
-  "https://customer-assets.emergentagent.com/job_439645a9-0386-42c3-861d-fde4b89b1822/artifacts/images/Event%20Vibes/document_6332483980037726241.mp4",
-  "https://customer-assets.emergentagent.com/job_439645a9-0386-42c3-861d-fde4b89b1822/artifacts/images/Event%20Vibes/document_6332483980037726247.mp4",
-  "https://customer-assets.emergentagent.com/job_439645a9-0386-42c3-861d-fde4b89b1822/artifacts/images/Event%20Vibes/IMG_2924.MP4",
-  "https://customer-assets.emergentagent.com/job_439645a9-0386-42c3-861d-fde4b89b1822/artifacts/images/Event%20Vibes/IMG_3625.MP4",
-];
+// Gallery videos — paste public URLs after uploading. Empty array hides the video row.
+export const galleryVideos = [];
 
 export const galleryPhotos = [
   "1otKHB7wvKdz1sHg6JtFik8ObyhAx7qrU",
@@ -220,7 +251,6 @@ export const clientLogos = [
   { name: "IJM", id: "1A7ptGdXVAdMiAMlvOlIXyHNiQQI2TRvm" },
   { name: "IGT Solutions", id: "1A74hhgJErL2LryjeoNG3aXNk4He1FtN7" },
   { name: "Turkish Cargo", id: "19aY2NV-bGeGtQVNJndel3v6HG01e-auR" },
-  { name: "Turkish Airlines", id: "1kIcC5-0VgN3PdASi8hvJtcBVPH81FxbW" },
   { name: "Emperor Group", id: "1faluD6jtGijPjfk-uJYAQUOH38QoDM-v" },
   { name: "BSV Malaysia", id: "1IQjBEOizwp1aAO5o2L8K5ixIM2hFnY1L" },
   { name: "Ericsson Malaysia", id: "1kbNzNXNWrx_yT4g0ydfwV7DIHCUVEHje" },
