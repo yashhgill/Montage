@@ -90,7 +90,10 @@ export const services = [
       { src: "https://lh3.googleusercontent.com/d/1UhymksIz19pCDLTK2C9-f1FvB1r0S-kP=s600", caption: "Guests in Action" },
       { src: "https://lh3.googleusercontent.com/d/1mYKtyu1sQV3LrWUJeKilX8CcRvtyyX61=s600", caption: "Photo Moment" },
     ],
-    videos: [],
+    videos: [
+      "https://customer-assets.emergentagent.com/job_occasion-desk/artifacts/ete2rtop_VID-20260224-WA0146.mp4",
+      "https://customer-assets.emergentagent.com/job_occasion-desk/artifacts/y55xqnnx_VID-20260318-WA0140.mp4",
+    ],
     details: [
       { label: "360° Booth", value: "Slow-mo video, instant share link" },
       { label: "Photobooth", value: "Printed strips & digital copies" },
