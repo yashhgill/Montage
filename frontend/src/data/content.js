@@ -41,7 +41,11 @@ export const services = [
       "https://lh3.googleusercontent.com/d/1PFOgKGh1RDo6pxBt2gafrwdZRgZX7uOR=s600",
       "https://lh3.googleusercontent.com/d/1tlbgWTRqDThDwOSe9phDj8mZLBiqfiFl=s600",
     ].map((src) => ({ src, caption: "Bar in Action" })),
-    videos: [], // Upload bar service videos and paste public URLs here
+    videos: [
+      "https://customer-assets.emergentagent.com/job_occasion-desk/artifacts/7gy9cvuk_VID-20260106-WA0080.mp4",
+      "https://customer-assets.emergentagent.com/job_occasion-desk/artifacts/9f50nn8p_VID_20260114_153406_963.mp4",
+      "https://customer-assets.emergentagent.com/job_occasion-desk/artifacts/jivg3hy4_VID_20250709_065904_343.mp4",
+    ], // Upload bar service videos and paste public URLs here
     details: [
       { label: "Bar Type", value: "Portable freestanding bar" },
       { label: "Cocktails", value: "Custom signature menu" },
