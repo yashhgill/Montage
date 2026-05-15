@@ -226,7 +226,6 @@ export const galleryPhotos = [
   `${R2}/Event%20Vibes/TVA_7559.jpg`,
   `${R2}/Event%20Vibes/TVA_7560.jpg`,
   `${R2}/Event%20Vibes/TVA_7582.jpg`,
-  `${R2}/Event%20Vibes/photo_6316472874990421415_y.jpg`,
   `${R2}/Event%20Vibes/photo_6332483980497719305_y.jpg`,
   `${R2}/Event%20Vibes/photo_6332483980497719307_y.jpg`,
   `${R2}/Event%20Vibes/photo_6332483980497719293_y.jpg`,
