@@ -89,8 +89,8 @@ export const services = [
     heroBg: `${R2}/360%20Photobooth/photo_6316472874990421415_y.jpg`,
     photos: [
       { src: `${R2}/360%20Photobooth/photo_6316472874990421415_y.jpg`, caption: "360° Camera Platform" },
-      { src: `${R2}/360%20Photobooth/photo_6316472874990421437_y.jpg`, caption: "Classic Photobooth" },
-      { src: `${R2}/360%20Photobooth/photo_6316472874990421466_y.jpg`, caption: "Guests in Action" },
+      { src: `${R2}/360%20Photobooth/photo_6316472874990421437_y.jpg`, caption: "360° Camera Platform" },
+      { src: `${R2}/360%20Photobooth/photo_6316472874990421466_y.jpg`, caption: "360° Camera Platform" },
     ],
     videos: [
       `${R2}/360%20Photobooth/VID-20260318-WA0140.mp4`,
@@ -136,10 +136,10 @@ export const services = [
       "Claw machines, arcade cabinets, physical game stalls, and digital game stalls — a full play area that keeps guests energised between music moments.",
     heroBg: `${R2}/Game%20Corners/photo_6321049192712835026_y.jpg`,
     photos: [
-      { src: `${R2}/Game%20Corners/photo_6321049192712835026_y.jpg`, caption: "Arcade Cabinets" },
-      { src: `${R2}/Game%20Corners/photo_6332483980497719283_y.jpg`, caption: "Game Zone Layout" },
-      { src: `${R2}/Game%20Corners/photo_6332483980497719285_y.jpg`, caption: "Racing Simulator" },
-      { src: `${R2}/Game%20Corners/photo_6316472874990421470_y.jpg`, caption: "Claw Machine" },
+      { src: `${R2}/Game%20Corners/photo_6321049192712835026_y.jpg`, caption: "Game Corner" },
+      { src: `${R2}/Game%20Corners/photo_6332483980497719283_y.jpg`, caption: "Racing Simulator" },
+      { src: `${R2}/Game%20Corners/photo_6332483980497719285_y.jpg`, caption: "Arcade Games" },
+      { src: `${R2}/Game%20Corners/photo_6316472874990421470_y.jpg`, caption: "Inflatable Games" },
     ],
     videos: [],
     details: [
