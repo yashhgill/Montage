@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { Menu, X } from "lucide-react";
 
+const LOGO = "https://pub-b849c3b830534eeea60b6844defeeb9f.r2.dev/images/montage-gold-logo.png";
+
 const NAV = [
   { label: "Services", href: "#services" },
   { label: "Clients", href: "#clients" },
@@ -28,16 +30,17 @@ export default function Header() {
       }`}
     >
       <div className="max-w-7xl mx-auto px-5 md:px-10 flex items-center justify-between gap-6">
-        <a href="#top" className="flex items-center gap-2 group" data-testid="brand-link">
-          <div className="relative">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-neon-pink via-neon-yellow to-neon-cyan neon-glow-pink flex items-center justify-center font-display font-black text-black text-base">
-              M
-            </div>
-            <span className="absolute -inset-1 rounded-full bg-neon-pink/40 blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
-          </div>
-          <div className="leading-tight">
-            <p className="font-display font-black tracking-tight text-base">MONTAGE</p>
-            <p className="text-[10px] uppercase tracking-[0.32em] text-white/50">Events</p>
+        {/* Brand / Logo */}
+        <a href="#top" className="flex items-center gap-3 group" data-testid="brand-link">
+          <div className="relative flex items-center justify-center">
+            {/* Glow halo behind logo */}
+            <span className="absolute w-16 h-16 rounded-full bg-yellow-400/20 blur-2xl group-hover:bg-yellow-400/40 transition-all duration-500" />
+            <img
+              src={LOGO}
+              alt="Montage Events Logo"
+              className="relative w-16 h-16 object-contain drop-shadow-[0_0_10px_rgba(212,175,55,0.7)] group-hover:drop-shadow-[0_0_18px_rgba(212,175,55,1)] transition-all duration-300"
+              style={{ filter: "drop-shadow(0 0 8px rgba(212,175,55,0.6))" }}
+            />
           </div>
         </a>
 
