@@ -1,17 +1,16 @@
 import { useEffect } from "react";
 
 const COLORS = ["#00F0FF", "#FF2DD4", "#B8FF2D", "#FF8A2D", "#FFE83D"];
-const MAX_OPACITY = 0.24;
-const MAX_ACTIVE_LIGHTS = 10;
+const MAX_OPACITY = 0.32;
+const MAX_ACTIVE_LIGHTS = 14;
 
 export default function PartyLights() {
   useEffect(() => {
     const container = document.querySelector(".party-lights");
     if (!container) return;
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const coarsePointer = window.matchMedia("(pointer: coarse)").matches;
     const narrowScreen = window.matchMedia("(max-width: 767px)").matches;
-    if (reduceMotion || coarsePointer || narrowScreen) return;
+    if (reduceMotion || narrowScreen) return;
 
     const timers = [];
     const frames = new Set();
@@ -32,7 +31,7 @@ export default function PartyLights() {
       if (container.childElementCount >= MAX_ACTIVE_LIGHTS) return;
 
       const el = document.createElement("span");
-      const size = Math.random() * 5 + 3; // small: 3-8px
+      const size = Math.random() * 6 + 4; // small: 4-10px
       const c1 = pickColor();
       const c2 = pickColor();
       const duration = (Math.random() * 5 + 7) * 1000; // 7-12s in ms
@@ -48,11 +47,11 @@ export default function PartyLights() {
         left: `${startX}px`,
         top: `${startY}px`,
         background: c1,
-        boxShadow: `0 0 ${size * 1.5}px ${c1}, 0 0 ${size * 3}px ${c2}`,
+        boxShadow: `0 0 ${size * 2}px ${c1}, 0 0 ${size * 4}px ${c2}`,
         opacity: "0",
         transform: "translate3d(0, 0, 0)",
         willChange: "transform, opacity",
-        zIndex: "3",
+        zIndex: "30",
       });
 
       container.appendChild(el);
@@ -87,7 +86,7 @@ export default function PartyLights() {
       timers.push(t);
     }
 
-    const id = setInterval(spawn, 520);
+    const id = setInterval(spawn, 420);
 
     return () => {
       clearInterval(id);
@@ -106,7 +105,7 @@ export default function PartyLights() {
         position: "fixed",
         inset: 0,
         pointerEvents: "none",
-        zIndex: 3,
+        zIndex: 30,
         overflow: "visible",
       }}
     />

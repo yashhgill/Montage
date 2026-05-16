@@ -120,7 +120,7 @@
     position: fixed;
     inset: 0;
     pointer-events: none;
-    z-index: 1;
+    z-index: 30;
     overflow: hidden;
 }
 .party-lights span {
