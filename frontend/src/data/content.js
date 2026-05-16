@@ -266,7 +266,7 @@ export const clientLogos = [
   { name: "IJM Company", file: "ijm-company.png" },
   { name: "IGT Solutions", file: "igt-solutions.png" },
   { name: "Turkish Cargo", file: "turkish-cargo.png" },
-  { name: "Turkish Airlines", url: "/images/logos/turkish-airlines.avif" },
+  { name: "Turkish Airlines", file: "turkish_airlines.png" },
   { name: "Emperor Group", file: "emperor-shipping.jpg" },
   { name: "BSV Malaysia", file: "bsv-malaysia.png" },
   { name: "Ericsson Malaysia", file: "ericsson.jpg" },
