@@ -1,11 +1,14 @@
 import { useEffect } from "react";
 
 const COLORS = ["#00F0FF", "#FF2DD4", "#B8FF2D", "#FF8A2D", "#FFE83D"];
+const MAX_OPACITY = 0.24;
 
 export default function PartyLights() {
   useEffect(() => {
     const container = document.querySelector(".party-lights");
     if (!container) return;
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduceMotion) return;
 
     const timers = [];
 
@@ -15,10 +18,10 @@ export default function PartyLights() {
 
     function spawn() {
       const el = document.createElement("span");
-      const size = Math.random() * 8 + 4; // small: 4–12px
+      const size = Math.random() * 5 + 3; // small: 3-8px
       const c1 = pickColor();
       const c2 = pickColor();
-      const duration = (Math.random() * 4 + 5) * 1000; // 5–9s in ms
+      const duration = (Math.random() * 5 + 7) * 1000; // 7-12s in ms
       const startX = Math.random() * window.innerWidth;
       const startY = window.innerHeight + 20; // start just below screen
 
@@ -31,9 +34,9 @@ export default function PartyLights() {
         left: `${startX}px`,
         top: `${startY}px`,
         background: c1,
-        boxShadow: `0 0 ${size * 2}px ${c1}, 0 0 ${size * 4}px ${c2}`,
+        boxShadow: `0 0 ${size * 1.5}px ${c1}, 0 0 ${size * 3}px ${c2}`,
         opacity: "0",
-        zIndex: "9999",
+        zIndex: "3",
       });
 
       container.appendChild(el);
@@ -47,10 +50,10 @@ export default function PartyLights() {
         const y = startY - (startY + 100) * progress;
         const opacity =
           progress < 0.1
-            ? (progress / 0.1) * 0.45
+            ? (progress / 0.1) * MAX_OPACITY
             : progress > 0.75
-            ? (1 - (progress - 0.75) / 0.25) * 0.45
-            : 0.45;
+            ? (1 - (progress - 0.75) / 0.25) * MAX_OPACITY
+            : MAX_OPACITY;
 
         el.style.top = `${y}px`;
         el.style.opacity = opacity;
@@ -68,7 +71,7 @@ export default function PartyLights() {
       timers.push(t);
     }
 
-    const id = setInterval(spawn, 180);
+    const id = setInterval(spawn, 520);
 
     return () => {
       clearInterval(id);
@@ -85,7 +88,7 @@ export default function PartyLights() {
         position: "fixed",
         inset: 0,
         pointerEvents: "none",
-        zIndex: 9999,
+        zIndex: 3,
         overflow: "visible",
       }}
     />
