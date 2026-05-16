@@ -34,6 +34,8 @@ export default function Experience() {
                 src={item.src}
                 alt={item.title}
                 loading="lazy"
+                decoding="async"
+                sizes="(min-width: 1024px) 33vw, 50vw"
                 className="absolute inset-0 w-full h-full object-cover"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />

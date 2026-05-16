@@ -243,7 +243,7 @@ export const galleryPhotos = [
 ];
 
 // ─────────────────────────────────────────────────────────────
-// CLIENT LOGOS — will be updated with R2 URLs once logos are uploaded
+// CLIENT LOGOS
 // ─────────────────────────────────────────────────────────────
 export const clientLogos = [
   { name: "DoubleTree by Hilton KL", id: "1pjpkjKbNNHWylijVFxEumoy8anKh27vH" },
@@ -256,25 +256,32 @@ export const clientLogos = [
   { name: "Four Seasons KL", id: "11FVrEoMVr-VR61TJ2Atzhpu6cscPemug" },
   { name: "Pavilion Hotel KL", id: "1tQMuwiaDJ-Hy4pxYs_vQlqhYIyJZ-Zqy" },
   { name: "Sofitel Damansara", id: "1EuvgYunoFL7uAMT_6jhEESJ_TLS74BzL" },
-  { name: "Putrajaya Marriott", id: "1WDMo1mRLeJF3n6FnCrnC0m6YwgTeWB8h" },
+  { name: "Putrajaya Marriott Hotel", id: "1WDMo1mRLeJF3n6FnCrnC0m6YwgTeWB8h" },
   { name: "Triangle Worldwide", id: "1qJj-up4-RP4aBjqdf2XxBQSwb6Yr1HwX" },
   { name: "World Asia Group", id: "1NHzB3beQ7mjlefsfvCVOCvNwUdSUDoPl" },
   { name: "Haskell Company", id: "1m0ri4Aq0oIhD8JsLRUZrw4YO0rGgZalS" },
   { name: "Stella Maris", id: "1RkeqQrmz3rF1w70YKF6Ri2Tv9Mr627Jp" },
-  { name: "IJM", id: "1A7ptGdXVAdMiAMlvOlIXyHNiQQI2TRvm" },
+  { name: "IJM Company", id: "1A7ptGdXVAdMiAMlvOlIXyHNiQQI2TRvm" },
   { name: "IGT Solutions", id: "1A74hhgJErL2LryjeoNG3aXNk4He1FtN7" },
   { name: "Turkish Cargo", id: "19aY2NV-bGeGtQVNJndel3v6HG01e-auR" },
+  { name: "Turkish Airlines" },
   { name: "Emperor Group", id: "1faluD6jtGijPjfk-uJYAQUOH38QoDM-v" },
   { name: "BSV Malaysia", id: "1IQjBEOizwp1aAO5o2L8K5ixIM2hFnY1L" },
   { name: "Ericsson Malaysia", id: "1kbNzNXNWrx_yT4g0ydfwV7DIHCUVEHje" },
   { name: "UMW Toyota", id: "1N_7F7P7q1lTPvf43wUoK_kEiC3_Nqy0W" },
-  { name: "Kota Permai Golf", id: "16o5o5GIJNqD4pdCgSOKPujyGCu_VBJOP" },
+  { name: "Kota Permai Golf & Country Club", id: "16o5o5GIJNqD4pdCgSOKPujyGCu_VBJOP" },
   { name: "Mazda Malaysia", id: "1S9fZk-3W970ZsIHLGNI1GZDFqqXTgj0R" },
-  { name: "Sentosa Medical", id: "1Mvr2YBjUlrYiCtkIn34cHrLidnZlh9RF" },
+  { name: "Sentosa Medical Centre", id: "1Mvr2YBjUlrYiCtkIn34cHrLidnZlh9RF" },
   { name: "Krohne Malaysia", id: "12O-qUSoo9JRGieqCoPN_Y9MDJFY5F2EY" },
   { name: "Shell Malaysia", id: "1H4AAT80WvWD5sFMTza9YwT9S8XWu3ZZJ" },
   { name: "Sailajah Group", id: "1yfcVBY9vEpE5qXMnXbeWjB0Tds0jW2Xj" },
-].map((c) => ({ ...c, url: `https://lh3.googleusercontent.com/d/${c.id}=s400` }));
+].map((c) => ({
+  ...c,
+  url: c.id ? `https://lh3.googleusercontent.com/d/${c.id}=s220` : null,
+  srcSet: c.id
+    ? `https://lh3.googleusercontent.com/d/${c.id}=s160 160w, https://lh3.googleusercontent.com/d/${c.id}=s220 220w, https://lh3.googleusercontent.com/d/${c.id}=s320 320w`
+    : null,
+}));
 
 export const eventTypes = [
   "Corporate Event",

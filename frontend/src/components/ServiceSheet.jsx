@@ -21,6 +21,7 @@ export default function ServiceSheet({ open, onOpenChange, serviceKey }) {
           <img
             src={service.heroBg}
             alt={service.title}
+            decoding="async"
             className="w-full h-full object-cover opacity-70"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A12] via-[#0A0A12]/40 to-transparent" />
@@ -84,6 +85,8 @@ export default function ServiceSheet({ open, onOpenChange, serviceKey }) {
                     src={p.src}
                     alt={p.caption}
                     loading="lazy"
+                    decoding="async"
+                    sizes="(min-width: 640px) 300px, 50vw"
                     className="w-full h-full object-cover"
                   />
                   <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/90 to-transparent">

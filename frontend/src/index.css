@@ -40,6 +40,7 @@
     body {
         @apply bg-[#050505] text-white font-body antialiased;
         font-feature-settings: "ss01", "cv11";
+        text-rendering: optimizeLegibility;
     }
     [id] {
         scroll-margin-top: 100px;
@@ -219,9 +220,24 @@
     width: max-content;
     animation: marquee-slide 55s linear infinite;
     will-change: transform;
+    contain: content;
 }
 .marquee-track:hover {
     animation-play-state: paused;
+}
+.client-logo-tile {
+    content-visibility: auto;
+    contain-intrinsic-size: 236px 128px;
+}
+
+#services,
+#clients,
+#experience,
+#gallery,
+#about,
+#contact {
+    content-visibility: auto;
+    contain-intrinsic-size: 900px;
 }
 
 /* Reduce motion */

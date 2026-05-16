@@ -4,6 +4,8 @@ import { galleryPhotos, galleryVideos } from "../data/content";
 
 export default function Gallery() {
   const [lightbox, setLightbox] = useState(null); // { type, src }
+  const [visibleCount, setVisibleCount] = useState(8);
+  const visiblePhotos = galleryPhotos.slice(0, visibleCount);
 
   return (
     <section
@@ -38,8 +40,8 @@ export default function Gallery() {
                   src={v}
                   muted
                   playsInline
-                  preload="metadata"
-                  className="absolute inset-0 w-full h-full object-cover opacity-70 group-hover:opacity-90 transition-opacity"
+                  preload="none"
+                  className="gallery-video absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-90 transition-opacity"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
                 <div className="absolute inset-0 grid place-items-center">
@@ -57,7 +59,7 @@ export default function Gallery() {
 
         {/* Photo masonry (CSS columns) */}
         <div className="columns-2 sm:columns-3 lg:columns-4 gap-3 md:gap-4 [column-fill:_balance]">
-          {galleryPhotos.map((src, i) => (
+          {visiblePhotos.map((src, i) => (
             <button
               key={src}
               onClick={() => setLightbox({ type: "image", src })}
@@ -68,12 +70,27 @@ export default function Gallery() {
                 src={src}
                 alt={`Montage event vibe ${i + 1}`}
                 loading="lazy"
+                decoding="async"
+                sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
                 className="w-full h-auto object-cover transition-transform duration-500 group-hover:scale-[1.05]"
               />
               <div className="absolute inset-0 ring-0 group-hover:ring-2 ring-neon-cyan/0 group-hover:ring-neon-cyan/40 transition-all" />
             </button>
           ))}
         </div>
+
+        {visibleCount < galleryPhotos.length && (
+          <div className="mt-8 flex justify-center">
+            <button
+              type="button"
+              onClick={() => setVisibleCount((count) => Math.min(count + 8, galleryPhotos.length))}
+              className="rounded-full border border-white/20 bg-white/[0.04] px-6 py-3 font-body text-sm font-bold text-white/85 transition-colors hover:border-neon-cyan/50 hover:bg-white/[0.08]"
+              data-testid="gallery-show-more"
+            >
+              Show more moments
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Lightbox */}

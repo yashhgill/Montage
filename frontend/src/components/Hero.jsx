@@ -5,8 +5,13 @@ export default function Hero() {
   const [active, setActive] = useState(0);
 
   useEffect(() => {
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduceMotion || heroSlides.length < 2) return undefined;
+
     const t = setInterval(() => {
-      setActive((i) => (i + 1) % heroSlides.length);
+      if (!document.hidden) {
+        setActive((i) => (i + 1) % heroSlides.length);
+      }
     }, 4800);
     return () => clearInterval(t);
   }, []);
@@ -50,7 +55,7 @@ export default function Hero() {
       {/* Content */}
       <div className="relative z-10 w-full max-w-5xl">
         <p
-          className="font-body uppercase tracking-[0.42em] text-xs sm:text-sm text-neon-cyan mb-6 animate-fade-up"
+          className="font-body uppercase tracking-[0.22em] sm:tracking-[0.42em] text-xs sm:text-sm text-neon-cyan mb-6 animate-fade-up"
           style={{ animationDelay: "0.05s", opacity: 0 }}
           data-testid="hero-kicker"
         >
@@ -96,7 +101,7 @@ export default function Hero() {
 
         {/* Stats row */}
         <div
-          className="mt-14 grid grid-cols-3 max-w-xl gap-x-8 sm:gap-x-12 animate-fade-up"
+          className="mt-14 grid grid-cols-3 max-w-xl gap-x-5 sm:gap-x-12 animate-fade-up"
           style={{ animationDelay: "0.65s", opacity: 0 }}
         >
           {[
@@ -106,7 +111,7 @@ export default function Hero() {
           ].map(([n, l]) => (
             <div key={l}>
               <p className="font-display font-black text-2xl sm:text-3xl text-white">{n}</p>
-              <p className="text-[11px] uppercase tracking-[0.22em] text-white/55 mt-1">{l}</p>
+              <p className="text-[9px] sm:text-[11px] uppercase tracking-[0.12em] sm:tracking-[0.22em] text-white/55 mt-1">{l}</p>
             </div>
           ))}
         </div>
