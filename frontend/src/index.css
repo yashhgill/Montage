@@ -130,6 +130,7 @@
     bottom: -20px;
     opacity: 0;
     filter: blur(0.5px);
+    contain: layout paint style;
 }
 
 /* Disco ball */
@@ -165,6 +166,8 @@
     opacity: 0;
     transform: scale(1.08);
     transition: opacity 1.4s ease, transform 6s ease;
+    will-change: opacity, transform;
+    contain: paint;
 }
 .hero-slide.active {
     opacity: 1;
@@ -221,6 +224,8 @@
     animation: marquee-slide 55s linear infinite;
     will-change: transform;
     contain: content;
+    backface-visibility: hidden;
+    transform: translate3d(0, 0, 0);
 }
 .marquee-track:hover {
     animation-play-state: paused;
@@ -238,6 +243,61 @@
 #contact {
     content-visibility: auto;
     contain-intrinsic-size: 900px;
+}
+
+@media (max-width: 767px) {
+    html {
+        scroll-behavior: auto;
+    }
+
+    .text-neon-gradient {
+        animation: none;
+        filter: none;
+        background-position: 35% center;
+    }
+
+    .text-shadow-neon {
+        text-shadow:
+            0 0 8px rgba(0, 240, 255, 0.36),
+            0 3px 18px rgba(0, 0, 0, 0.6);
+    }
+
+    .hero-slide {
+        transform: none;
+        transition: opacity 420ms ease;
+        will-change: opacity;
+    }
+
+    .hero-slide.active {
+        transform: none;
+    }
+
+    .grid-noise {
+        background-size: 96px 96px;
+        opacity: 0.25;
+    }
+
+    .glass-panel {
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+        background: rgba(10, 10, 18, 0.9);
+    }
+
+    .marquee-track {
+        animation-duration: 95s;
+        gap: 0.75rem;
+        will-change: transform;
+    }
+
+    .client-logo-tile {
+        contain-intrinsic-size: 210px 118px;
+    }
+
+    .service-card-glow,
+    .image-card-hover img,
+    .image-card-hover video {
+        transition-duration: 180ms;
+    }
 }
 
 /* Reduce motion */

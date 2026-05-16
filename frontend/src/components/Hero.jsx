@@ -3,10 +3,22 @@ import { heroSlides, waLink } from "../data/content";
 
 export default function Hero() {
   const [active, setActive] = useState(0);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 767px)");
+    const sync = () => {
+      setIsMobile(media.matches);
+      if (media.matches) setActive(0);
+    };
+    sync();
+    media.addEventListener("change", sync);
+    return () => media.removeEventListener("change", sync);
+  }, []);
 
   useEffect(() => {
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reduceMotion || heroSlides.length < 2) return undefined;
+    if (reduceMotion || isMobile || heroSlides.length < 2) return undefined;
 
     const t = setInterval(() => {
       if (!document.hidden) {
@@ -14,7 +26,9 @@ export default function Hero() {
       }
     }, 4800);
     return () => clearInterval(t);
-  }, []);
+  }, [isMobile]);
+
+  const slides = isMobile ? heroSlides.slice(0, 1) : heroSlides;
 
   return (
     <section
@@ -24,7 +38,7 @@ export default function Hero() {
     >
       {/* Slideshow backdrop */}
       <div className="absolute inset-0">
-        {heroSlides.map((src, i) => (
+        {slides.map((src, i) => (
           <div
             key={src}
             className={`hero-slide ${i === active ? "active" : ""}`}
@@ -38,7 +52,7 @@ export default function Hero() {
       </div>
 
       {/* Dots */}
-      <div className="absolute bottom-20 right-6 md:right-12 z-10 flex flex-col gap-3" aria-hidden="true">
+      <div className="absolute bottom-20 right-6 md:right-12 z-10 hidden md:flex flex-col gap-3" aria-hidden="true">
         {heroSlides.map((_, i) => (
           <button
             key={i}
