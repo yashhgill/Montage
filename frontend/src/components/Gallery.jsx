@@ -31,17 +31,18 @@ export default function Gallery() {
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 mb-5">
             {galleryVideos.map((v, i) => (
               <button
-                key={v}
-                onClick={() => setLightbox({ type: "video", src: v })}
+                key={v.src}
+                onClick={() => setLightbox({ type: "video", src: v.src, poster: v.poster })}
                 data-testid={`gallery-video-${i}`}
                 className="relative aspect-video rounded-xl overflow-hidden border border-white/10 bg-[#0A0A14] group"
               >
-                <video
-                  src={v}
-                  muted
-                  playsInline
-                  preload="none"
-                  className="gallery-video absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-90 transition-opacity"
+                <img
+                  src={v.poster}
+                  alt={`Montage event vibe reel ${i + 1}`}
+                  loading="lazy"
+                  decoding="async"
+                  sizes="(min-width: 768px) 33vw, 50vw"
+                  className="absolute inset-0 h-full w-full object-cover opacity-70 transition-transform duration-500 group-hover:scale-[1.04]"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
                 <div className="absolute inset-0 grid place-items-center">
@@ -115,9 +116,11 @@ export default function Gallery() {
             ) : (
               <video
                 src={lightbox.src}
+                poster={lightbox.poster}
                 controls
                 autoPlay
                 playsInline
+                preload="metadata"
                 className="w-full max-h-[88vh] rounded-xl bg-black"
               />
             )}

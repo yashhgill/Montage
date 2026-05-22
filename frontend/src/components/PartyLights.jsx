@@ -1,97 +1,83 @@
 import { useEffect } from "react";
 
 const COLORS = ["#00F0FF", "#FF2DD4", "#B8FF2D", "#FF8A2D", "#FFE83D"];
-const MAX_OPACITY = 0.32;
-const MAX_ACTIVE_LIGHTS = 14;
+const DESKTOP_SETTINGS = {
+  maxLights: 16,
+  interval: 360,
+  minSize: 4,
+  sizeRange: 7,
+  minDuration: 7200,
+  durationRange: 4800,
+  maxOpacity: 0.34,
+};
+const MOBILE_SETTINGS = {
+  maxLights: 7,
+  interval: 920,
+  minSize: 3,
+  sizeRange: 5,
+  minDuration: 8200,
+  durationRange: 3800,
+  maxOpacity: 0.24,
+};
 
 export default function PartyLights() {
   useEffect(() => {
     const container = document.querySelector(".party-lights");
     if (!container) return;
-    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const narrowScreen = window.matchMedia("(max-width: 767px)").matches;
-    if (reduceMotion || narrowScreen) return;
+    const reduceMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const mobileQuery = window.matchMedia("(max-width: 767px)");
+    if (reduceMotionQuery.matches) return;
 
-    const timers = [];
-    const frames = new Set();
-
-    function queueFrame(callback) {
-      const frameId = requestAnimationFrame((time) => {
-        frames.delete(frameId);
-        callback(time);
-      });
-      frames.add(frameId);
-    }
+    let intervalId;
 
     function pickColor() {
       return COLORS[Math.floor(Math.random() * COLORS.length)];
     }
 
     function spawn() {
-      if (container.childElementCount >= MAX_ACTIVE_LIGHTS) return;
+      const settings = mobileQuery.matches ? MOBILE_SETTINGS : DESKTOP_SETTINGS;
+      if (container.childElementCount >= settings.maxLights) return;
 
       const el = document.createElement("span");
-      const size = Math.random() * 6 + 4; // small: 4-10px
+      const size = Math.random() * settings.sizeRange + settings.minSize;
       const c1 = pickColor();
       const c2 = pickColor();
-      const duration = (Math.random() * 5 + 7) * 1000; // 7-12s in ms
+      const duration = Math.random() * settings.durationRange + settings.minDuration;
       const startX = Math.random() * window.innerWidth;
-      const startY = window.innerHeight + 20; // start just below screen
+      const drift = (Math.random() - 0.5) * (mobileQuery.matches ? 90 : 170);
 
       Object.assign(el.style, {
-        position: "fixed",
-        borderRadius: "50%",
-        pointerEvents: "none",
         width: `${size}px`,
         height: `${size}px`,
         left: `${startX}px`,
-        top: `${startY}px`,
         background: c1,
         boxShadow: `0 0 ${size * 2}px ${c1}, 0 0 ${size * 4}px ${c2}`,
-        opacity: "0",
-        transform: "translate3d(0, 0, 0)",
-        willChange: "transform, opacity",
-        zIndex: "30",
+        "--party-drift": `${drift}px`,
+        "--party-opacity": settings.maxOpacity,
+        animationDuration: `${duration}ms`,
       });
 
       container.appendChild(el);
-
-      const start = performance.now();
-
-      function frame(now) {
-        const elapsed = now - start;
-        const progress = Math.min(elapsed / duration, 1);
-        // travel from bottom to top of screen
-        const y = -(startY + 100) * progress;
-        const opacity =
-          progress < 0.1
-            ? (progress / 0.1) * MAX_OPACITY
-            : progress > 0.75
-            ? (1 - (progress - 0.75) / 0.25) * MAX_OPACITY
-            : MAX_OPACITY;
-
-        el.style.transform = `translate3d(0, ${y}px, 0)`;
-        el.style.opacity = opacity;
-
-        if (progress < 1) {
-          queueFrame(frame);
-        } else {
-          el.remove();
-        }
-      }
-
-      queueFrame(frame);
-
-      const t = setTimeout(() => el.remove(), duration + 200);
-      timers.push(t);
+      el.addEventListener("animationend", () => el.remove(), { once: true });
     }
 
-    const id = setInterval(spawn, 420);
+    function start() {
+      clearInterval(intervalId);
+      container.replaceChildren();
+      if (reduceMotionQuery.matches) return;
+      const settings = mobileQuery.matches ? MOBILE_SETTINGS : DESKTOP_SETTINGS;
+      spawn();
+      intervalId = setInterval(spawn, settings.interval);
+    }
+
+    start();
+    mobileQuery.addEventListener("change", start);
+    reduceMotionQuery.addEventListener("change", start);
 
     return () => {
-      clearInterval(id);
-      timers.forEach((t) => clearTimeout(t));
-      frames.forEach((frameId) => cancelAnimationFrame(frameId));
+      clearInterval(intervalId);
+      mobileQuery.removeEventListener("change", start);
+      reduceMotionQuery.removeEventListener("change", start);
       container.replaceChildren();
     };
   }, []);

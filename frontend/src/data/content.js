@@ -214,11 +214,26 @@ export const experience = [
 // GALLERY
 // ─────────────────────────────────────────────────────────────
 export const galleryVideos = [
-  `${R2}/Event%20Vibes/IMG_2924.MP4`,
-  `${R2}/Event%20Vibes/IMG_3625.MP4`,
-  `${R2}/Event%20Vibes/document_6332483980037726236.mp4`,
-  `${R2}/Event%20Vibes/document_6332483980037726237.mp4`,
-  `${R2}/Event%20Vibes/document_6332483980037726241.mp4`,
+  {
+    src: `${R2}/Event%20Vibes/IMG_2924.MP4`,
+    poster: `${R2}/Event%20Vibes/TVA_7534.jpg`,
+  },
+  {
+    src: `${R2}/Event%20Vibes/IMG_3625.MP4`,
+    poster: `${R2}/Event%20Vibes/TVA_7559.jpg`,
+  },
+  {
+    src: `${R2}/Event%20Vibes/document_6332483980037726236.mp4`,
+    poster: `${R2}/Event%20Vibes/TVA_7582.jpg`,
+  },
+  {
+    src: `${R2}/Event%20Vibes/document_6332483980037726237.mp4`,
+    poster: `${R2}/Event%20Vibes/photo_6332483980497719305_y.jpg`,
+  },
+  {
+    src: `${R2}/Event%20Vibes/document_6332483980037726241.mp4`,
+    poster: `${R2}/Event%20Vibes/photo_6330141780212388571_y.jpg`,
+  },
 ];
 
 export const galleryPhotos = [
