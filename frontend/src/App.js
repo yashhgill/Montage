@@ -1,9 +1,7 @@
+import HomePage from "@/pages/HomePage";
+
 function App() {
-  return (
-    <div style={{padding: "40px", fontSize: "32px"}}>
-      Montage Website Working
-    </div>
-  );
+  return <HomePage />;
 }
 
 export default App;
