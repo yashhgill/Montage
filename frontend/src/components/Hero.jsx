@@ -119,7 +119,7 @@ export default function Hero() {
           style={{ animationDelay: "0.65s", opacity: 0 }}
         >
           {[
-            ["500+", "Events Hosted"],
+            ["2000+", "Events Hosted"],
             ["29+", "Premium Clients"],
             ["7", "Signature Services"],
           ].map(([n, l]) => (
