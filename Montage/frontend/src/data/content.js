@@ -40,6 +40,7 @@ export const services = [
       { src: `${R2}/Bar%20%26%20Beverages/photo_6316472874990421563_y.jpg`, caption: "Bar in Action" },
       { src: `${R2}/Bar%20%26%20Beverages/photo_6316472874990421557_y.jpg`, caption: "Beverages" },
       { src: `${R2}/Bar%20%26%20Beverages/IMG_20260529_232814_986.jpg`, caption: "Beverages" },
+      { src: `${R2}/Bar%20%26%20Beverages/photo_6332575974402231900_y.jpg`, caption: "Bar Experience" },
     ],
     videos: [
       `${R2}/Bar%20%26%20Beverages/VID-20260106-WA0080.mp4`,
@@ -63,12 +64,12 @@ export const services = [
       "Clear audio, punchy bass, LED washes, moving lights, and neon atmosphere — professional sound and lighting tuned for your crowd.",
     heroBg: `${R2}/Sound%20%26%20Lighting/photo_6332483980497719307_y.jpg`,
     photos: [
-      { src: `${R2}/Sound%20%26%20Lighting/photo_6330141780212388564_y.jpg`, caption: "Stage Lighting" },
-      { src: `${R2}/Sound%20%26%20Lighting/photo_6332483980497719298_y.jpg`, caption: "LED Wash Setup" },
       { src: `${R2}/Sound%20%26%20Lighting/photo_6332483980497719307_y.jpg`, caption: "Live Sound Setup" },
+      { src: `${R2}/Sound%20%26%20Lighting/photo_6329969337275453838_x.jpg`, caption: "Stage Lighting" },
+      { src: `${R2}/Sound%20%26%20Lighting/photo_6329969337275453840_y.jpg`, caption: "LED Wash Setup" },
     ],
     videos: [
-      `${R2}/Sound%20%26%20Lighting/document_6332483980037726243.mp4`,
+      `${R2}/Sound%20%26%20Lighting/document_6064284532490639690.mp4`,
       `${R2}/Sound%20%26%20Lighting/document_6332483980037726245.mp4`,
     ],
     details: [
@@ -90,7 +91,8 @@ export const services = [
     photos: [
       { src: `${R2}/360%20Photobooth/photo_6316472874990421415_y.jpg`, caption: "360° Camera Platform" },
       { src: `${R2}/360%20Photobooth/photo_6316472874990421466_y.jpg`, caption: "360° Camera Platform" },
-      { src: `${R2}/360%20Photobooth/photo_6316472874990421437_y.jpg`, caption: "360° Camera Platform" },
+      { src: `${R2}/360%20Photobooth/photo_6069153969302344036_y.jpg`, caption: "360° Experience" },
+      { src: `${R2}/360%20Photobooth/photo_6069153969302344086_y%20(1).jpg`, caption: "360° Moment" },
     ],
     videos: [
       `${R2}/360%20Photobooth/VID-20260318-WA0140.mp4`,
@@ -111,14 +113,15 @@ export const services = [
     accent: "orange",
     subtitle:
       "Professional event coverage — cinematic highlight videos, candid photography, drone shots, and same-day social media edits to make your event live online before guests leave.",
-    heroBg: `${R2}/Event%20Vibes/TVA_7534.jpg`,
+    heroBg: `${R2}/Video%20%26%20Photography/photo_6069153969302344062_y.jpg`,
     photos: [
-      { src: `${R2}/Event%20Vibes/TVA_7534.jpg`, caption: "Event Coverage" },
-      { src: `${R2}/Event%20Vibes/TVA_7559.jpg`, caption: "Candid Photography" },
-      { src: `${R2}/Event%20Vibes/TVA_7560.jpg`, caption: "Stage Coverage" },
-      { src: `${R2}/Event%20Vibes/TVA_7582.jpg`, caption: "Cinematic Highlight" },
+      { src: `${R2}/Video%20%26%20Photography/photo_6069153969302344062_y.jpg`, caption: "Event Coverage" },
+      { src: `${R2}/Video%20%26%20Photography/photo_6069153969302344086_y.jpg`, caption: "Candid Photography" },
+      { src: `${R2}/Video%20%26%20Photography/photo_6069153969302344209_y.jpg`, caption: "Stage Coverage" },
     ],
-    videos: [],
+    videos: [
+      `${R2}/Video%20%26%20Photography/document_6064284532490639689.mp4`,
+    ],
     details: [
       { label: "Videography", value: "Multi-cam coverage, 4K edit" },
       { label: "Photography", value: "Editorial-style stills, fast turnaround" },
@@ -159,10 +162,10 @@ export const services = [
       "Live entertainment that works the room — clowns, magicians, and mascots bring personality, laughs, and unforgettable moments to any celebration.",
     heroBg: `${R2}/Entertainers/photo_6321049192712835034_w.jpg`,
     photos: [
-      { src: `${R2}/Entertainers/photo_6082628024735481028_y.jpg`, caption: "Family Entertainment" },
       { src: `${R2}/Entertainers/photo_6321049192712835034_w.jpg`, caption: "Carnival Activities" },
-      { src: `${R2}/Entertainers/photo_6321279321351762844_y.jpg`, caption: "Entertainer Moment" },
       { src: `${R2}/Entertainers/photo_6321279321351762848_y.jpg`, caption: "Mascot Entertainment" },
+      { src: `${R2}/Entertainers/photo_6329969337275453823_y.jpg`, caption: "Live Entertainment" },
+      { src: `${R2}/Entertainers/photo_6329969337275453834_y.jpg`, caption: "Entertainer Moment" },
       { src: `${R2}/Entertainers/photo_6332483980497719266_y.jpg`, caption: "Live Character" },
     ],
     videos: [],
