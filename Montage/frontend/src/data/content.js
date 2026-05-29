@@ -89,8 +89,8 @@ export const services = [
     heroBg: `${R2}/360%20Photobooth/photo_6316472874990421415_y.jpg`,
     photos: [
       { src: `${R2}/360%20Photobooth/photo_6316472874990421415_y.jpg`, caption: "360° Camera Platform" },
-      { src: `${R2}/360%20Photobooth/photo_6316472874990421437_y.jpg`, caption: "360° Camera Platform" },
       { src: `${R2}/360%20Photobooth/photo_6316472874990421466_y.jpg`, caption: "360° Camera Platform" },
+      { src: `${R2}/360%20Photobooth/photo_6316472874990421437_y.jpg`, caption: "360° Camera Platform" },
     ],
     videos: [
       `${R2}/360%20Photobooth/VID-20260318-WA0140.mp4`,
