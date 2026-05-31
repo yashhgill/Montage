@@ -40,7 +40,7 @@ export const services = [
       { src: `${R2}/Bar%20%26%20Beverages/photo_6316472874990421563_y.jpg`, caption: "Bar in Action" },
       { src: `${R2}/Bar%20%26%20Beverages/photo_6316472874990421557_y.jpg`, caption: "Beverages" },
       { src: `${R2}/Bar%20%26%20Beverages/IMG_20260529_232814_986.jpg`, caption: "Beverages" },
-      { src: `${R2}/Bar%20%26%20Beverages/photo_6332575974402231900_y.jpg`, caption: "Bar Experience" },
+      
     ],
     videos: [
       `${R2}/Bar%20%26%20Beverages/VID-20260106-WA0080.mp4`,
