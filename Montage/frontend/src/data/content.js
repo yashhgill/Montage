@@ -91,8 +91,8 @@ export const services = [
     photos: [
       { src: `${R2}/360%20Photobooth/photo_6316472874990421415_y.jpg`, caption: "360° Camera Platform" },
       { src: `${R2}/360%20Photobooth/photo_6316472874990421466_y.jpg`, caption: "360° Camera Platform" },
-      { src: `${R2}/360%20Photobooth/photo_6069153969302344036_y.jpg`, caption: "360° Experience" },
-      { src: `${R2}/360%20Photobooth/photo_6069153969302344086_y%20(1).jpg`, caption: "360° Moment" },
+      { src: `${R2}/360%20Photobooth/photo_6329969337275453827_y.jpg`, caption: "Photobooth Moment" },
+      { src: `${R2}/360%20Photobooth/photo_6329969337275453826_y.jpg`, caption: "Photobooth Moment" },
     ],
     videos: [
       `${R2}/360%20Photobooth/VID-20260318-WA0140.mp4`,
