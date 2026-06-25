@@ -282,3 +282,25 @@
     }
     .reveal-item { opacity: 1; transform: none; }
 }
+
+/* ─── Hero title clip reveal ─────────────────────────────── */
+.hero-clip-reveal {
+    animation: hero-clip 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes hero-clip {
+    from { opacity: 0; transform: translateY(30px); clip-path: inset(0 0 100% 0); }
+    to   { opacity: 1; transform: translateY(0);    clip-path: inset(0 0 0% 0); }
+}
+
+/* ─── Rotating word swap ─────────────────────────────────── */
+.hero-word-swap {
+    animation: word-swap 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes word-swap {
+    from { opacity: 0; transform: translateY(0.5em) rotateX(-40deg); filter: blur(4px); }
+    to   { opacity: 1; transform: translateY(0) rotateX(0); filter: blur(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .hero-clip-reveal, .hero-word-swap { animation: none !important; }
+}
