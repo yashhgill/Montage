@@ -8,7 +8,6 @@ import Experience from "../components/Experience";
 import Gallery from "../components/Gallery";
 import About from "../components/About";
 import Contact from "../components/Contact";
-import FloatingWhatsApp from "../components/FloatingWhatsApp";
 import PartyLights from "../components/PartyLights";
 import DiscoBall from "../components/DiscoBall";
 import CursorGlow from "../components/CursorGlow";
@@ -39,7 +38,6 @@ export default function HomePage() {
         <Contact />
       </main>
       <Footer />
-      <FloatingWhatsApp />
       <ServiceSheet open={sheetOpen} onOpenChange={setSheetOpen} serviceKey={activeService} />
     </div>
   );
