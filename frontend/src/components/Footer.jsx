@@ -9,7 +9,6 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto grid gap-8 md:grid-cols-[1.5fr_1fr_1fr]">
         <div>
           <div className="flex items-center gap-3">
-            {/* Logo — bigger in footer */}
             <div className="relative flex items-center justify-center">
               <span className="absolute w-16 h-16 rounded-full bg-yellow-400/15 blur-2xl" />
               <img
@@ -54,8 +53,18 @@ export default function Footer() {
       </div>
 
       <div className="max-w-7xl mx-auto mt-10 pt-6 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-white/40">
-        <p>© {new Date().getFullYear()} Montage Events. Shah Alam, Malaysia.</p>
-        <p>Built with neon energy ✦</p>
+        <p>© {new Date().getFullYear()} Montage Events. All rights reserved.</p>
+        <p>
+          Built by{" "}
+          <a
+            href="https://harnova.my"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-semibold text-white/70 hover:text-neon-cyan transition-colors"
+          >
+            harnova.my
+          </a>
+        </p>
       </div>
     </footer>
   );
