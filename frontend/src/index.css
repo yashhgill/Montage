@@ -30,33 +30,17 @@
 }
 
 @layer base {
-    * {
-        @apply border-border;
-    }
-    html {
-        scroll-behavior: smooth;
-        background: #050505;
-    }
+    * { @apply border-border; }
+    html { scroll-behavior: smooth; background: #050505; }
     body {
         @apply bg-[#050505] text-white font-body antialiased;
         font-feature-settings: "ss01", "cv11";
         text-rendering: optimizeLegibility;
     }
-    [id] {
-        scroll-margin-top: 100px;
-    }
-    ::selection {
-        background: #FF2DD4;
-        color: #050505;
-    }
-    /* Custom scrollbar */
-    ::-webkit-scrollbar {
-        width: 10px;
-        height: 10px;
-    }
-    ::-webkit-scrollbar-track {
-        background: #050505;
-    }
+    [id] { scroll-margin-top: 100px; }
+    ::selection { background: #FF2DD4; color: #050505; }
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    ::-webkit-scrollbar-track { background: #050505; }
     ::-webkit-scrollbar-thumb {
         background: linear-gradient(180deg, #FF2DD4, #00F0FF);
         border-radius: 8px;
@@ -65,8 +49,8 @@
 
 @layer utilities {
     .font-display { font-family: 'Unbounded', system-ui, sans-serif; }
-    .font-body { font-family: 'Outfit', system-ui, sans-serif; }
-    .font-funky { font-family: 'Boogaloo', cursive; }
+    .font-body    { font-family: 'Outfit', system-ui, sans-serif; }
+    .font-funky   { font-family: 'Boogaloo', cursive; }
 
     .text-neon-gradient {
         background: linear-gradient(90deg, #FF2DD4, #FF8A2D, #FFE83D, #B8FF2D, #00F0FF, #8B5CFF, #FF2DD4);
@@ -77,81 +61,98 @@
         animation: neon-shift 4s linear infinite;
         filter: drop-shadow(0 0 12px rgba(0,240,255,0.35));
     }
-
-    .neon-glow-cyan {
-        box-shadow: 0 0 20px rgba(0, 240, 255, 0.45), 0 0 48px rgba(0, 240, 255, 0.18);
-    }
-    .neon-glow-pink {
-        box-shadow: 0 0 20px rgba(255, 45, 212, 0.5), 0 0 48px rgba(255, 45, 212, 0.2);
-    }
-    .neon-glow-lime {
-        box-shadow: 0 0 20px rgba(184, 255, 45, 0.5), 0 0 48px rgba(184, 255, 45, 0.18);
-    }
-
+    .neon-glow-cyan  { box-shadow: 0 0 20px rgba(0,240,255,0.45), 0 0 48px rgba(0,240,255,0.18); }
+    .neon-glow-pink  { box-shadow: 0 0 20px rgba(255,45,212,0.5), 0 0 48px rgba(255,45,212,0.2); }
+    .neon-glow-lime  { box-shadow: 0 0 20px rgba(184,255,45,0.5), 0 0 48px rgba(184,255,45,0.18); }
     .text-shadow-neon {
-        text-shadow:
-            0 0 12px rgba(0, 240, 255, 0.55),
-            0 0 32px rgba(0, 240, 255, 0.28),
-            0 4px 24px rgba(0, 0, 0, 0.6);
+        text-shadow: 0 0 12px rgba(0,240,255,0.55), 0 0 32px rgba(0,240,255,0.28), 0 4px 24px rgba(0,0,0,0.6);
     }
-
     .glass-panel {
-        background: rgba(10, 10, 18, 0.55);
+        background: rgba(10,10,18,0.55);
         backdrop-filter: blur(18px);
         -webkit-backdrop-filter: blur(18px);
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255,255,255,0.08);
     }
-
     .grid-noise {
         background-image:
             linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
             linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
         background-size: 64px 64px;
     }
-
-    /* Hide native video controls for autoplaying gallery videos cleanly */
-    .gallery-video::-webkit-media-controls {
-        display: none !important;
-    }
+    .gallery-video::-webkit-media-controls { display: none !important; }
 }
 
-/* Party light particles */
-.party-lights {
-    position: fixed;
-    inset: 0;
+/* ─── Scroll reveal ──────────────────────────────────────── */
+.reveal-item {
+    opacity: 0;
+    transform: translateY(28px);
+    transition: opacity 0.65s cubic-bezier(0.22, 1, 0.36, 1),
+                transform 0.65s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.reveal-item.revealed {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* ─── Hero floating orbs ─────────────────────────────────── */
+.hero-orb {
+    position: absolute;
+    border-radius: 50%;
     pointer-events: none;
-    z-index: 30;
-    overflow: hidden;
+    filter: blur(80px);
+    will-change: transform;
 }
+.hero-orb-1 {
+    width: 500px; height: 500px;
+    top: -100px; left: -100px;
+    background: radial-gradient(circle, rgba(255,45,212,0.12), transparent 70%);
+    animation: orb-drift-1 12s ease-in-out infinite alternate;
+}
+.hero-orb-2 {
+    width: 400px; height: 400px;
+    bottom: 0; right: 10%;
+    background: radial-gradient(circle, rgba(0,240,255,0.1), transparent 70%);
+    animation: orb-drift-2 15s ease-in-out infinite alternate;
+}
+.hero-orb-3 {
+    width: 300px; height: 300px;
+    top: 40%; left: 50%;
+    background: radial-gradient(circle, rgba(184,255,45,0.06), transparent 70%);
+    animation: orb-drift-3 18s ease-in-out infinite alternate;
+}
+@keyframes orb-drift-1 { from { transform: translate(0,0) scale(1); } to { transform: translate(60px, 40px) scale(1.15); } }
+@keyframes orb-drift-2 { from { transform: translate(0,0) scale(1); } to { transform: translate(-40px,-60px) scale(1.1); } }
+@keyframes orb-drift-3 { from { transform: translate(0,0) scale(1); } to { transform: translate(30px,50px) scale(1.2); } }
+
+/* ─── Party lights ───────────────────────────────────────── */
+.party-lights { position: fixed; inset: 0; pointer-events: none; z-index: 30; overflow: hidden; }
 .party-lights span {
     position: absolute;
     border-radius: 50%;
     pointer-events: none;
-    left: 0;
-    bottom: -20px;
+    left: 0; bottom: -20px;
     opacity: 0;
     filter: blur(0.5px);
     contain: layout paint style;
     will-change: transform, opacity;
-    transform: translate3d(0, 0, 0);
+    transform: translate3d(0,0,0);
     animation: float-up var(--party-duration, 9000ms) linear forwards;
     z-index: 30;
 }
 
-/* Disco ball */
+/* ─── Disco ball ─────────────────────────────────────────── */
 .disco-ball {
     position: fixed;
     top: 96px;
     right: clamp(18px, 6vw, 64px);
     z-index: 12;
-    width: 58px;
-    height: 58px;
+    width: 58px; height: 58px;
     border-radius: 50%;
     background:
         linear-gradient(90deg, transparent 48%, rgba(0,0,0,0.24) 50%, transparent 52%),
         linear-gradient(0deg, transparent 48%, rgba(0,0,0,0.18) 50%, transparent 52%),
         radial-gradient(circle at 30% 28%, #ffffff, #d8fbff 22%, #7f8dff 55%, #ff57dd);
-    box-shadow: 0 0 32px rgba(255, 255, 255, 0.42), 0 0 60px rgba(255, 45, 212, 0.28);
+    box-shadow: 0 0 32px rgba(255,255,255,0.42), 0 0 60px rgba(255,45,212,0.28);
     animation: disco-swing 5s ease-in-out infinite;
 }
 .disco-ball::before {
@@ -162,10 +163,9 @@
     background: linear-gradient(to top, rgba(255,255,255,0.4), transparent);
 }
 
-/* Hero slide transition */
+/* ─── Hero slide ─────────────────────────────────────────── */
 .hero-slide {
-    position: absolute;
-    inset: 0;
+    position: absolute; inset: 0;
     background-size: cover;
     background-position: center;
     opacity: 0;
@@ -174,25 +174,21 @@
     will-change: opacity, transform;
     contain: paint;
 }
-.hero-slide.active {
-    opacity: 1;
-    transform: scale(1.02);
-}
+.hero-slide.active { opacity: 1; transform: scale(1.02); }
 
-/* Card hover glow */
+/* ─── Service card ───────────────────────────────────────── */
 .service-card-glow {
-    transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 320ms ease, border-color 320ms ease;
+    transition: box-shadow 320ms ease, border-color 320ms ease;
 }
 .service-card-glow:hover {
-    transform: translateY(-4px);
-    border-color: rgba(0, 240, 255, 0.45);
-    box-shadow: 0 0 28px rgba(0, 240, 255, 0.18), 0 0 60px rgba(255, 45, 212, 0.12);
+    border-color: rgba(0,240,255,0.45);
+    box-shadow: 0 0 28px rgba(0,240,255,0.18), 0 0 60px rgba(255,45,212,0.12);
 }
 
-/* Image card hover */
+/* ─── Image card hover ───────────────────────────────────── */
 .image-card-hover img,
 .image-card-hover video {
-    transition: transform 700ms cubic-bezier(0.22, 1, 0.36, 1), filter 700ms ease;
+    transition: transform 700ms cubic-bezier(0.22,1,0.36,1), filter 700ms ease;
 }
 .image-card-hover:hover img,
 .image-card-hover:hover video {
@@ -200,29 +196,32 @@
     filter: saturate(1.2) brightness(1.06);
 }
 
-/* Bubble float-up animation for PartyLights */
+/* ─── Animations ─────────────────────────────────────────── */
 @keyframes float-up {
-    0% {
-        transform: translate3d(0, 0, 0) scale(0.55);
-        opacity: 0;
-    }
-    10% {
-        opacity: var(--party-opacity, 0.3);
-    }
-    80% {
-        opacity: calc(var(--party-opacity, 0.3) * 0.72);
-    }
-    100% {
-        transform: translate3d(var(--party-drift, 0), calc(-100vh - 140px), 0) scale(1.08);
-        opacity: 0;
-    }
+    0%   { transform: translate3d(0,0,0) scale(0.55); opacity: 0; }
+    10%  { opacity: var(--party-opacity, 0.3); }
+    80%  { opacity: calc(var(--party-opacity, 0.3) * 0.72); }
+    100% { transform: translate3d(var(--party-drift,0), calc(-100vh - 140px), 0) scale(1.08); opacity: 0; }
 }
-
-/* Marquee track */
 @keyframes marquee-slide {
     from { transform: translateX(0); }
     to   { transform: translateX(-50%); }
 }
+@keyframes neon-shift {
+    0%   { background-position: 0% center; }
+    100% { background-position: 200% center; }
+}
+@keyframes disco-swing {
+    0%, 100% { transform: rotate(-6deg); }
+    50%       { transform: rotate(6deg); }
+}
+@keyframes animate-fade-up {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-up { animation: animate-fade-up 0.5s ease forwards; }
+
+/* ─── Marquee ────────────────────────────────────────────── */
 .marquee-track {
     display: flex;
     width: max-content;
@@ -230,89 +229,56 @@
     will-change: transform;
     contain: content;
     backface-visibility: hidden;
-    transform: translate3d(0, 0, 0);
+    transform: translate3d(0,0,0);
 }
-.marquee-track:hover {
-    animation-play-state: paused;
+.marquee-track:hover { animation-play-state: paused; }
+.client-logo-tile { content-visibility: auto; contain-intrinsic-size: 236px 128px; }
+
+/* ─── Sheet slide-in ─────────────────────────────────────── */
+[data-state="open"][data-side="right"] {
+    animation: sheet-slide-in 0.42s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
-.client-logo-tile {
-    content-visibility: auto;
-    contain-intrinsic-size: 236px 128px;
+[data-state="closed"][data-side="right"] {
+    animation: sheet-slide-out 0.32s cubic-bezier(0.55, 0, 1, 0.45) forwards;
+}
+@keyframes sheet-slide-in {
+    from { transform: translateX(100%); opacity: 0; }
+    to   { transform: translateX(0);    opacity: 1; }
+}
+@keyframes sheet-slide-out {
+    from { transform: translateX(0);    opacity: 1; }
+    to   { transform: translateX(100%); opacity: 0; }
 }
 
-#services,
-#clients,
-#experience,
-#gallery,
-#about,
-#contact {
+/* ─── Content visibility ─────────────────────────────────── */
+#services, #clients, #experience, #gallery, #about, #contact {
     content-visibility: auto;
     contain-intrinsic-size: 900px;
 }
 
+/* ─── Mobile overrides ───────────────────────────────────── */
 @media (max-width: 767px) {
-    html {
-        scroll-behavior: auto;
-    }
-
-    .text-neon-gradient {
-        animation: none;
-        filter: none;
-        background-position: 35% center;
-    }
-
-    .text-shadow-neon {
-        text-shadow:
-            0 0 8px rgba(0, 240, 255, 0.36),
-            0 3px 18px rgba(0, 0, 0, 0.6);
-    }
-
-    .hero-slide {
-        transform: none;
-        transition: opacity 420ms ease;
-        will-change: opacity;
-    }
-
-    .hero-slide.active {
-        transform: none;
-    }
-
-    .grid-noise {
-        background-size: 96px 96px;
-        opacity: 0.25;
-    }
-
-    .glass-panel {
-        backdrop-filter: none;
-        -webkit-backdrop-filter: none;
-        background: rgba(10, 10, 18, 0.9);
-    }
-
-    .marquee-track {
-        animation-duration: 95s;
-        gap: 0.75rem;
-        will-change: transform;
-    }
-
-    .client-logo-tile {
-        contain-intrinsic-size: 210px 118px;
-    }
-
-    .service-card-glow,
-    .image-card-hover img,
-    .image-card-hover video {
-        transition-duration: 180ms;
-    }
+    html { scroll-behavior: auto; }
+    .text-neon-gradient { animation: none; filter: none; background-position: 35% center; }
+    .text-shadow-neon { text-shadow: 0 0 8px rgba(0,240,255,0.36), 0 3px 18px rgba(0,0,0,0.6); }
+    .hero-slide { transform: none; transition: opacity 420ms ease; will-change: opacity; }
+    .hero-slide.active { transform: none; }
+    .grid-noise { background-size: 96px 96px; opacity: 0.25; }
+    .glass-panel { backdrop-filter: none; -webkit-backdrop-filter: none; background: rgba(10,10,18,0.9); }
+    .marquee-track { animation-duration: 95s; gap: 0.75rem; }
+    .client-logo-tile { contain-intrinsic-size: 210px 118px; }
+    .service-card-glow, .image-card-hover img, .image-card-hover video { transition-duration: 180ms; }
+    .hero-orb { display: none; }
+    .reveal-item { opacity: 1; transform: none; transition: none; }
 }
 
-/* Reduce motion */
+/* ─── Reduce motion ──────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
-    *,
-    *::before,
-    *::after {
+    *, *::before, *::after {
         animation-duration: 0.001ms !important;
         animation-iteration-count: 1 !important;
         transition-duration: 0.001ms !important;
         scroll-behavior: auto !important;
     }
+    .reveal-item { opacity: 1; transform: none; }
 }
