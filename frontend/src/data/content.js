@@ -81,23 +81,23 @@ export const services = [
   {
     key: "photo",
     no: "03",
-    title: "360° Photobooth",
+    title: "360\u00b0 Photobooth",
     short: "360 camera platform with slow-mo videos and instant share links for every guest.",
     accent: "lime",
     subtitle:
       "Guests step on the platform, the arm spins, and walk away with a slow-motion video — instant share links, custom overlays, and classic photobooth prints for every table.",
     heroBg: `${R2}/360%20Photobooth/photo_6316472874990421415_y.jpg`,
     photos: [
-      { src: `${R2}/360%20Photobooth/photo_6316472874990421415_y.jpg`, caption: "360° Camera Platform" },
-      { src: `${R2}/360%20Photobooth/photo_6316472874990421437_y.jpg`, caption: "360° Camera Platform" },
-      { src: `${R2}/360%20Photobooth/photo_6316472874990421466_y.jpg`, caption: "360° Camera Platform" },
+      { src: `${R2}/360%20Photobooth/photo_6316472874990421415_y.jpg`, caption: "360\u00b0 Camera Platform" },
+      { src: `${R2}/360%20Photobooth/photo_6316472874990421437_y.jpg`, caption: "360\u00b0 Camera Platform" },
+      { src: `${R2}/360%20Photobooth/photo_6316472874990421466_y.jpg`, caption: "360\u00b0 Camera Platform" },
     ],
     videos: [
       `${R2}/360%20Photobooth/VID-20260318-WA0140.mp4`,
       `${R2}/360%20Photobooth/VID-20260224-WA0146.mp4`,
     ],
     details: [
-      { label: "360° Booth", value: "Slow-mo video, instant share link" },
+      { label: "360\u00b0 Booth", value: "Slow-mo video, instant share link" },
       { label: "Photobooth", value: "Printed strips & digital copies" },
       { label: "Props", value: "Full prop kit included" },
       { label: "Best For", value: "Birthdays, weddings, campus nights" },
@@ -170,7 +170,7 @@ export const services = [
       { label: "Clown", value: "Balloon art, face painting, slapstick" },
       { label: "Magician", value: "Close-up & stage magic shows" },
       { label: "Mascot", value: "Custom character suits available" },
-      { label: "Best For", value: "Children's parties, family events" },
+      { label: "Best For", value: "Children\'s parties, family events" },
     ],
   },
   {
@@ -194,6 +194,31 @@ export const services = [
       { label: "Setup", value: "Full crew on event day" },
       { label: "Packages", value: "Modular — pick what you need" },
       { label: "Best For", value: "Any event, any size" },
+    ],
+  },
+  {
+    key: "smokegrill",
+    no: "08",
+    title: "Smoke & Grill",
+    short: "Live BBQ stations and premium shisha setups that turn any gathering into a feast.",
+    accent: "orange",
+    subtitle:
+      "Sizzling live BBQ stations loaded with marinated meats and seafood, paired with a curated shisha lounge — the perfect combo to keep your guests fed, relaxed, and coming back for more.",
+    heroBg: null,
+    waOverride: "60113905421",
+    instagramOverride: null,
+    photos: [
+      { src: null, caption: "Live BBQ Station" },
+      { src: null, caption: "Shisha Lounge Setup" },
+      { src: null, caption: "Grilled Spread" },
+      { src: null, caption: "Premium Shisha" },
+    ],
+    videos: [],
+    details: [
+      { label: "BBQ", value: "Live grill, marinated meats & seafood" },
+      { label: "Shisha", value: "Premium flavours, multiple setups" },
+      { label: "Setup", value: "Full crew, charcoal & equipment included" },
+      { label: "Best For", value: "Corporate nights, private parties, weddings" },
     ],
   },
 ];
