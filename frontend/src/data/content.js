@@ -205,7 +205,7 @@ export const services = [
     subtitle:
       "Sizzling live BBQ stations loaded with marinated meats and seafood, paired with a curated shisha lounge — the perfect combo to keep your guests fed, relaxed, and coming back for more.",
     heroBg: null,
-    waOverride: "60113905421",
+    waOverride: "601139054210",
     instagramOverride: null,
     photos: [
       { src: null, caption: "Live BBQ Station" },
