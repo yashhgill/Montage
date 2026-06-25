@@ -11,6 +11,7 @@ import Contact from "../components/Contact";
 import FloatingWhatsApp from "../components/FloatingWhatsApp";
 import PartyLights from "../components/PartyLights";
 import DiscoBall from "../components/DiscoBall";
+import CursorGlow from "../components/CursorGlow";
 import Footer from "../components/Footer";
 
 export default function HomePage() {
@@ -24,6 +25,7 @@ export default function HomePage() {
 
   return (
     <div className="relative min-h-screen bg-[#050505] text-white overflow-x-hidden" data-testid="home-page">
+      <CursorGlow />
       <PartyLights />
       <DiscoBall />
       <Header />
