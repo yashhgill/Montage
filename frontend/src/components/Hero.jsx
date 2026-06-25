@@ -1,10 +1,13 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { heroSlides, waLink } from "../data/content";
+
+const ROTATING = ["unforgettable.", "electric.", "legendary.", "iconic."];
 
 export default function Hero() {
   const [active, setActive] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [wordIdx, setWordIdx] = useState(0);
 
   useEffect(() => {
     const media = window.matchMedia("(max-width: 767px)");
@@ -25,6 +28,14 @@ export default function Hero() {
     const t = setInterval(() => { if (!document.hidden) setActive((i) => (i + 1) % heroSlides.length); }, 4800);
     return () => clearInterval(t);
   }, [isMobile]);
+
+  // Rotating word
+  useEffect(() => {
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduceMotion) return;
+    const t = setInterval(() => setWordIdx((i) => (i + 1) % ROTATING.length), 2600);
+    return () => clearInterval(t);
+  }, []);
 
   // Animated counters
   useEffect(() => {
@@ -82,28 +93,21 @@ export default function Hero() {
 
       {/* Content */}
       <div className="relative z-10 w-full max-w-5xl">
-        <p
-          className="font-body uppercase tracking-[0.22em] sm:tracking-[0.42em] text-xs sm:text-sm text-neon-cyan mb-6 animate-fade-up"
-          style={{ animationDelay: "0.05s", opacity: 0 }}
-          data-testid="hero-kicker">
-          ✦ Montage Events · Shah Alam, Malaysia
-        </p>
         <h1
-          className="font-display font-black uppercase leading-[0.9] tracking-tighter text-4xl sm:text-5xl lg:text-7xl xl:text-[5.5rem] text-shadow-neon animate-fade-up"
-          style={{ animationDelay: "0.15s", opacity: 0 }}
+          className="font-display font-black uppercase leading-[0.9] tracking-tighter text-4xl sm:text-5xl lg:text-7xl xl:text-[5.5rem] text-shadow-neon hero-clip-reveal"
           data-testid="hero-title">
-          Turn your event into the{" "}
-          <span className="text-neon-gradient">night everyone</span> talks about.
+          Turn your event into the night{" "}
+          <span className="relative inline-block align-top">
+            <span className="text-neon-gradient">that&apos;s</span>{" "}
+            <span key={wordIdx} className="text-neon-gradient inline-block hero-word-swap">
+              {ROTATING[wordIdx]}
+            </span>
+          </span>
         </h1>
-        <p
-          className="font-funky mt-6 text-lg sm:text-xl text-neon-gradient max-w-2xl animate-fade-up"
-          style={{ animationDelay: "0.3s", opacity: 0 }}
-          data-testid="hero-tagline">
-          Sound. Lights. Games. Photo moments. Pure party energy.
-        </p>
+
         <div
           className="mt-10 flex flex-wrap gap-4 animate-fade-up"
-          style={{ animationDelay: "0.45s", opacity: 0 }}>
+          style={{ animationDelay: "0.35s", opacity: 0 }}>
           <a href={waLink("Hi Montage, I want to plan an event.")} target="_blank" rel="noopener noreferrer"
             data-testid="hero-cta-whatsapp"
             className="group relative inline-flex items-center gap-2 px-7 py-4 rounded-full bg-neon-cyan text-black font-bold tracking-wide neon-glow-cyan hover:scale-[1.06] active:scale-95 transition-transform">
@@ -120,7 +124,7 @@ export default function Hero() {
         {/* Stats — counter animates up on load */}
         <div
           className="mt-14 grid grid-cols-3 max-w-xl gap-x-5 sm:gap-x-12 animate-fade-up"
-          style={{ animationDelay: "0.65s", opacity: 0 }}>
+          style={{ animationDelay: "0.5s", opacity: 0 }}>
           {[
             ["c-events",   "2000+", "Events Hosted"],
             ["c-clients",  "29+",   "Premium Clients"],
