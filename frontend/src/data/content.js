@@ -1,7 +1,7 @@
 // Montage Events — all content in one place
 export const PHONE = "60133446521";
 export const PHONE_DISPLAY = "+60 13-344 6521";
-export const EMAIL = "montage.eventmanagement@gmail.com";
+export const EMAIL = "enquiries@montageevents.my";
 export const INSTAGRAM = "https://www.instagram.com/montage.event.management";
 export const INSTAGRAM_HANDLE = "@montage.event.management";
 export const ADDRESS = "No. 15-A, Jalan Panglima Hitam Q 35/Q, Alam Impian, Seksyen 35, 40470 Shah Alam, Selangor";
