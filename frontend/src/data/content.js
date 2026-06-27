@@ -39,7 +39,7 @@ export const services = [
       { src: `${R2}/Bar%20%26%20Beverages/photo_6316472874990421486_y.jpg`, caption: "Cocktail Station" },
       { src: `${R2}/Bar%20%26%20Beverages/photo_6316472874990421563_y.jpg`, caption: "Bar in Action" },
       { src: `${R2}/Bar%20%26%20Beverages/photo_6332483980497719287_y.jpg`, caption: "Beverages" },
-      { src: `${R2}/Bar%20%26%20Beverages/photo_6332575974402231900_y.jpg`, caption: "Mocktail Bar" },
+      { src: `${R2}/Bar%20%26%20Beverages/IMG_20260529_232814_986.jpg`, caption: "Mocktail Bar" },
     ],
     videos: [
       `${R2}/Bar%20%26%20Beverages/VID-20260106-WA0080.mp4`,
@@ -88,9 +88,8 @@ export const services = [
       "Guests step on the platform, the arm spins, and walk away with a slow-motion video — instant share links, custom overlays, and classic photobooth prints for every table.",
     heroBg: `${R2}/360%20Photobooth/photo_6316472874990421415_y.jpg`,
     photos: [
-      { src: `${R2}/360%20Photobooth/photo_6316472874990421415_y.jpg`, caption: "Photobooth Sesh" },
-      { src: `${R2}/360%20Photobooth/photo_6069153969302344036_y.jpg`, caption: "Photobooth Sesh" },
-      { src: `${R2}/360%20Photobooth/photo_6316472874990421466_y.jpg`, caption: "Photobooth Sesh" },
+      { src: `${R2}/360%20Photobooth/photo_6316472874990421415_y.jpg`, caption: "360 Camera Platforms" },
+      { src: `${R2}/360%20Photobooth/photo_6316472874990421466_y.jpg`, caption: "360 Camera Platforms },
       { src: `${R2}/360%20Photobooth/photo_6329969337275453826_y.jpg`, caption: "Photobooth Sesh" },
       { src: `${R2}/360%20Photobooth/photo_6329969337275453827_y.jpg`, caption: "Photobooth Sesh" },
     ],
