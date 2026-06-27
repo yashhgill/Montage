@@ -63,12 +63,12 @@ export const services = [
       "Clear audio, punchy bass, LED washes, moving lights, and neon atmosphere — professional sound and lighting tuned for your crowd.",
     heroBg: `${R2}/Sound%20%26%20Lighting/photo_6332483980497719307_y.jpg`,
     photos: [
-      { src: `${R2}/Sound%20%26%20Lighting/photo_6330141780212388564_y.jpg`, caption: "Stage Lighting" },
-      { src: `${R2}/Sound%20%26%20Lighting/photo_6332483980497719298_y.jpg`, caption: "LED Wash Setup" },
+      { src: `${R2}/Sound%20%26%20Lighting/photo_6329969337275453838_x.jpg`, caption: "Stage Lighting" },
+      { src: `${R2}/Sound%20%26%20Lighting/photo_6329969337275453840_y.jpg`, caption: "LED Wash Setup" },
       { src: `${R2}/Sound%20%26%20Lighting/photo_6332483980497719307_y.jpg`, caption: "Live Sound Setup" },
     ],
     videos: [
-      `${R2}/Sound%20%26%20Lighting/document_6332483980037726243.mp4`,
+      `${R2}/Sound%20%26%20Lighting/document_6064284532490639690.mp4`,
       `${R2}/Sound%20%26%20Lighting/document_6332483980037726245.mp4`,
     ],
     details: [
@@ -89,7 +89,7 @@ export const services = [
     heroBg: `${R2}/360%20Photobooth/photo_6316472874990421415_y.jpg`,
     photos: [
       { src: `${R2}/360%20Photobooth/photo_6316472874990421415_y.jpg`, caption: "360\u00b0 Camera Platform" },
-      { src: `${R2}/360%20Photobooth/photo_6316472874990421437_y.jpg`, caption: "360\u00b0 Camera Platform" },
+      { src: `${R2}/360%20Photobooth/photo_6069153969302344036_y.jpg`, caption: "360\u00b0 Camera Platform" },
       { src: `${R2}/360%20Photobooth/photo_6316472874990421466_y.jpg`, caption: "360\u00b0 Camera Platform" },
     ],
     videos: [
@@ -159,9 +159,9 @@ export const services = [
       "Live entertainment that works the room — clowns, magicians, and mascots bring personality, laughs, and unforgettable moments to any celebration.",
     heroBg: `${R2}/Entertainers/photo_6321049192712835034_w.jpg`,
     photos: [
-      { src: `${R2}/Entertainers/photo_6082628024735481028_y.jpg`, caption: "Family Entertainment" },
+      { src: `${R2}/Entertainers/photo_6329969337275453823_y.jpg`, caption: "Family Entertainment" },
       { src: `${R2}/Entertainers/photo_6321049192712835034_w.jpg`, caption: "Carnival Activities" },
-      { src: `${R2}/Entertainers/photo_6321279321351762844_y.jpg`, caption: "Entertainer Moment" },
+      { src: `${R2}/Entertainers/photo_6329969337275453834_y.jpg`, caption: "Entertainer Moment" },
       { src: `${R2}/Entertainers/photo_6321279321351762848_y.jpg`, caption: "Mascot Entertainment" },
       { src: `${R2}/Entertainers/photo_6332483980497719266_y.jpg`, caption: "Live Character" },
     ],
@@ -272,7 +272,7 @@ export const galleryPhotos = [
   `${R2}/Event%20Vibes/photo_6332483980497719292_y.jpg`,
   `${R2}/Event%20Vibes/photo_6332483980497719263_y.jpg`,
   `${R2}/Event%20Vibes/photo_6330141780212388571_y.jpg`,
-  `${R2}/Event%20Vibes/photo_6330141780212388564_y.jpg`,
+  `${R2}/Event%20Vibes/photo_6329969337275453838_x.jpg`,
   `${R2}/Event%20Vibes/photo_6330141780212388560_y.jpg`,
   `${R2}/Event%20Vibes/photo_6330141780212388548_y.jpg`,
   `${R2}/Event%20Vibes/photo_6330141780212388539_y.jpg`,
