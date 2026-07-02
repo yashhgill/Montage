@@ -8,6 +8,7 @@ from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional
 import uuid
+from bookings import build_bookings_router
 from datetime import datetime, timezone
 
 
@@ -129,6 +130,9 @@ async def delete_booking(booking_id: str, x_admin_token: Optional[str] = Header(
         raise HTTPException(status_code=404, detail="Booking not found")
     return {"ok": True}
 
+
+# Mount the bookings router under /api
+api_router.include_router(build_bookings_router(db, ADMIN_TOKEN))
 
 # Include the router in the main app
 app.include_router(api_router)
