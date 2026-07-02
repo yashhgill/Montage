@@ -217,6 +217,12 @@ async function handleTestFire(request, env) {
       GOOGLE_CALENDAR_ID: !!env.GOOGLE_CALENDAR_ID,
       GMAIL_SENDER: !!env.GMAIL_SENDER,
     },
+    // safe diagnostics: names + shapes only, never secret values
+    all_google_gmail_keys: Object.keys(env).filter(function (k) {
+      return k.indexOf("GOOGLE") >= 0 || k.indexOf("GMAIL") >= 0 || k.indexOf("REFRESH") >= 0 || k.indexOf("TOKEN") >= 0;
+    }),
+    refresh_token_len: env.GOOGLE_REFRESH_TOKEN ? String(env.GOOGLE_REFRESH_TOKEN).length : 0,
+    refresh_token_prefix: env.GOOGLE_REFRESH_TOKEN ? String(env.GOOGLE_REFRESH_TOKEN).slice(0, 3) : "",
   };
   try {
     result.calendar_event_id = await blockCalendar(env, rec);
