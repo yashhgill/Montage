@@ -11,10 +11,11 @@
 //   TOYYIBPAY_SECRET_KEY   -> ToyyibPay secret key
 //   TOYYIBPAY_CATEGORY_CODE-> ToyyibPay category code
 //   SITE_URL               -> https://montageevents.my
-//   GOOGLE_SA_EMAIL        -> service account email
-//   GOOGLE_SA_PRIVATE_KEY  -> service account private key (PEM)
-//   GOOGLE_CALENDAR_ID     -> calendar to block
-//   GMAIL_SENDER           -> jojo@montageevents.my (impersonated via domain-wide delegation)
+//   GOOGLE_CLIENT_ID       -> OAuth client ID (Web application)
+//   GOOGLE_CLIENT_SECRET   -> OAuth client secret
+//   GOOGLE_REFRESH_TOKEN   -> refresh token for jojo@montageevents.my
+//   GOOGLE_CALENDAR_ID     -> calendar to block (usually jojo@montageevents.my)
+//   GMAIL_SENDER           -> jojo@montageevents.my
 //   EVENT_TIMEZONE         -> Asia/Kuala_Lumpur
 
 const DEPOSIT_RM = 500;
@@ -173,50 +174,18 @@ async function handleStatus(env, ref) {
   });
 }
 
-// ─── Google auth (service account JWT via Web Crypto) ────────
-function b64urlFromBytes(bytes) {
-  let bin = "";
-  for (const byte of bytes) bin += String.fromCharCode(byte);
-  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-}
-function b64urlFromString(str) {
-  return b64urlFromBytes(new TextEncoder().encode(str));
-}
-function pemToBuffer(pem) {
-  const b64 = pem
-    .replace(/-----BEGIN PRIVATE KEY-----/, "")
-    .replace(/-----END PRIVATE KEY-----/, "")
-    .replace(/\s+/g, "");
-  const bin = atob(b64);
-  const buf = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
-  return buf.buffer;
-}
-async function getGoogleAccessToken(env, scope) {
-  const now = Math.floor(Date.now() / 1000);
-  const header = { alg: "RS256", typ: "JWT" };
-  const claim = {
-    iss: env.GOOGLE_SA_EMAIL,
-    scope,
-    aud: "https://oauth2.googleapis.com/token",
-    exp: now + 3600,
-    iat: now,
-    sub: env.GMAIL_SENDER, // domain-wide delegation: impersonate this user
-  };
-  const unsigned = `${b64urlFromString(JSON.stringify(header))}.${b64urlFromString(JSON.stringify(claim))}`;
-  const pem = (env.GOOGLE_SA_PRIVATE_KEY || "").replace(/\\n/g, "\n");
-  const key = await crypto.subtle.importKey(
-    "pkcs8", pemToBuffer(pem),
-    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["sign"]
-  );
-  const sig = await crypto.subtle.sign(
-    "RSASSA-PKCS1-v1_5", key, new TextEncoder().encode(unsigned)
-  );
-  const jwt = `${unsigned}.${b64urlFromBytes(new Uint8Array(sig))}`;
+// ─── Google auth (OAuth refresh token) ──────────────────────
+async function getGoogleAccessToken(env) {
+  const body = new URLSearchParams({
+    client_id: env.GOOGLE_CLIENT_ID,
+    client_secret: env.GOOGLE_CLIENT_SECRET,
+    refresh_token: env.GOOGLE_REFRESH_TOKEN,
+    grant_type: "refresh_token",
+  });
   const res = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },
-    body: `grant_type=${encodeURIComponent("urn:ietf:params:oauth:grant-type:jwt-bearer")}&assertion=${jwt}`,
+    body,
   });
   const j = await res.json();
   if (!j.access_token) throw new Error("Google token error: " + JSON.stringify(j));
@@ -239,11 +208,8 @@ function slotTimes(dateStr, slot, tz) {
   };
 }
 async function blockCalendar(env, rec) {
-  if (!env.GOOGLE_SA_EMAIL || !env.GOOGLE_SA_PRIVATE_KEY || !env.GOOGLE_CALENDAR_ID) return "";
-  const token = await getGoogleAccessToken(
-    env,
-    "https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/gmail.send"
-  );
+  if (!env.GOOGLE_REFRESH_TOKEN || !env.GOOGLE_CALENDAR_ID) return "";
+  const token = await getGoogleAccessToken(env);
   const tz = env.EVENT_TIMEZONE || "Asia/Kuala_Lumpur";
   const { start, end } = slotTimes(rec.event_date, rec.time_slot, tz);
   const body = {
@@ -273,11 +239,8 @@ function fullPaymentDue(dateStr) {
   } catch { return "30 days before the event"; }
 }
 async function sendEmail(env, rec) {
-  if (!env.GOOGLE_SA_EMAIL || !env.GOOGLE_SA_PRIVATE_KEY || !env.GMAIL_SENDER) return false;
-  const token = await getGoogleAccessToken(
-    env,
-    "https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/gmail.send"
-  );
+  if (!env.GOOGLE_REFRESH_TOKEN || !env.GMAIL_SENDER) return false;
+  const token = await getGoogleAccessToken(env);
   const due = fullPaymentDue(rec.event_date);
   const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#0A0A12;color:#fff;padding:32px;border-radius:12px">
 <h1 style="color:#00F0FF;margin:0 0 4px">Booking Confirmed</h1>
