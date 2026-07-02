@@ -1,3 +1,5 @@
+import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+
 // Cloudflare Pages Function — Montage booking API
 // Routes (all under same origin): /api/bookings/*
 //   GET  /api/bookings/config
@@ -249,6 +251,138 @@ function fullPaymentDue(dateStr) {
     return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
   } catch { return "30 days before the event"; }
 }
+
+// ─── Invoice PDF (pdf-lib) ──────────────────────────────────
+function parsePrice(str) {
+  // "RM 7,999" -> 7999
+  const n = parseInt(String(str || "").replace(/[^0-9]/g, ""), 10);
+  return isNaN(n) ? 0 : n;
+}
+
+async function buildInvoicePdf(env, rec) {
+  const pdf = await PDFDocument.create();
+  const page = pdf.addPage([595, 842]); // A4 portrait (pt)
+  const { width } = page.getSize();
+  const font = await pdf.embedFont(StandardFonts.Helvetica);
+  const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+
+  const gold = rgb(0.79, 0.66, 0.30);
+  const dark = rgb(0.04, 0.04, 0.07);
+  const grey = rgb(0.42, 0.42, 0.46);
+  const black = rgb(0.1, 0.1, 0.12);
+  const M = 48; // margin
+
+  // Header band
+  page.drawRectangle({ x: 0, y: 792, width, height: 50, color: dark });
+
+  // Logo (fetch from R2, embed)
+  try {
+    const logoUrl = "https://pub-b849c3b830534eeea60b6844defeeb9f.r2.dev/images/montage-gold-logo.png";
+    const imgRes = await fetch(logoUrl);
+    if (imgRes.ok) {
+      const bytes = new Uint8Array(await imgRes.arrayBuffer());
+      const png = await pdf.embedPng(bytes);
+      const scaled = png.scaleToFit(120, 38);
+      page.drawImage(png, { x: M, y: 798, width: scaled.width, height: scaled.height });
+    }
+  } catch (e) { /* logo optional */ }
+
+  page.drawText("INVOICE", { x: width - M - 90, y: 806, size: 22, font: bold, color: gold });
+
+  let y = 750;
+  page.drawText("Montage Event Management", { x: M, y, size: 12, font: bold, color: black });
+  y -= 15;
+  page.drawText("Shah Alam, Selangor, Malaysia", { x: M, y, size: 9, font, color: grey });
+  y -= 12;
+  page.drawText("jojo@montageevents.my  |  montageevents.my", { x: M, y, size: 9, font, color: grey });
+
+  // Invoice meta (right)
+  let ry = 750;
+  const rightLabel = (label, value) => {
+    page.drawText(label, { x: width - M - 200, y: ry, size: 9, font, color: grey });
+    page.drawText(value, { x: width - M - 110, y: ry, size: 9, font: bold, color: black });
+    ry -= 15;
+  };
+  rightLabel("Invoice No:", rec.reference);
+  rightLabel("Date:", new Date().toISOString().slice(0, 10));
+  rightLabel("Status:", "DEPOSIT PAID");
+
+  // Billed to
+  y -= 34;
+  page.drawText("BILLED TO", { x: M, y, size: 9, font: bold, color: gold });
+  y -= 16;
+  page.drawText(rec.name || "", { x: M, y, size: 12, font: bold, color: black }); y -= 14;
+  page.drawText("Phone: " + (rec.phone || ""), { x: M, y, size: 9, font, color: grey }); y -= 12;
+  page.drawText("Email: " + (rec.email || ""), { x: M, y, size: 9, font, color: grey });
+
+  // Event details block (right)
+  let ey = y + 26;
+  page.drawText("EVENT DETAILS", { x: width - M - 200, y: ey, size: 9, font: bold, color: gold }); ey -= 16;
+  const evLine = (t) => { page.drawText(t, { x: width - M - 200, y: ey, size: 9, font, color: grey }); ey -= 12; };
+  evLine("Date: " + rec.event_date);
+  evLine("Time: " + rec.time_slot);
+  evLine("Venue: " + (rec.venue || ""));
+  evLine("Pax: " + (rec.pax || ""));
+
+  // Line items table
+  y -= 44;
+  page.drawRectangle({ x: M, y: y - 4, width: width - 2 * M, height: 22, color: dark });
+  page.drawText("DESCRIPTION", { x: M + 10, y: y + 3, size: 9, font: bold, color: gold });
+  page.drawText("AMOUNT", { x: width - M - 90, y: y + 3, size: 9, font: bold, color: gold });
+  y -= 28;
+
+  const total = parsePrice(rec.package_price);
+  const deposit = rec.deposit_rm || 500;
+  const balance = Math.max(total - deposit, 0);
+
+  const row = (desc, amount, isBold) => {
+    const f = isBold ? bold : font;
+    page.drawText(desc, { x: M + 10, y, size: 10, font: f, color: black });
+    page.drawText("RM " + amount.toLocaleString("en-MY") + ".00", { x: width - M - 100, y, size: 10, font: f, color: black });
+    y -= 20;
+  };
+  row(rec.package_name + " (full package)", total);
+  page.drawLine({ start: { x: M, y: y + 6 }, end: { x: width - M, y: y + 6 }, thickness: 0.5, color: rgb(0.85,0.85,0.85) });
+  row("Deposit paid (this invoice)", deposit);
+  page.drawLine({ start: { x: M, y: y + 6 }, end: { x: width - M, y: y + 6 }, thickness: 0.5, color: rgb(0.85,0.85,0.85) });
+
+  // Totals
+  y -= 6;
+  page.drawText("Deposit Paid:", { x: width - M - 220, y, size: 10, font, color: grey });
+  page.drawText("RM " + deposit.toLocaleString("en-MY") + ".00", { x: width - M - 100, y, size: 10, font: bold, color: black });
+  y -= 18;
+  page.drawRectangle({ x: width - M - 240, y: y - 6, width: 240, height: 24, color: rgb(0.95,0.93,0.86) });
+  page.drawText("Balance Due:", { x: width - M - 220, y, size: 11, font: bold, color: black });
+  page.drawText("RM " + balance.toLocaleString("en-MY") + ".00", { x: width - M - 100, y, size: 11, font: bold, color: black });
+
+  // Terms
+  y -= 46;
+  page.drawText("TERMS", { x: M, y, size: 9, font: bold, color: gold }); y -= 14;
+  const due = fullPaymentDue(rec.event_date);
+  const terms = [
+    "\u2022 The RM" + deposit + " deposit is non-refundable in the event of cancellation.",
+    "\u2022 Balance of RM" + balance.toLocaleString("en-MY") + ".00 must be paid by " + due + " (30 days before the event).",
+    "\u2022 This invoice confirms your deposit and secures your event date and time slot.",
+  ];
+  for (const t of terms) { page.drawText(t, { x: M, y, size: 9, font, color: grey }); y -= 13; }
+
+  // Footer
+  page.drawText("Thank you for choosing Montage Event Management.", { x: M, y: 60, size: 9, font, color: grey });
+  page.drawRectangle({ x: 0, y: 0, width, height: 6, color: gold });
+
+  const bytes = await pdf.save();
+  return bytes; // Uint8Array
+}
+
+function bytesToBase64(bytes) {
+  let bin = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    bin += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+  }
+  return btoa(bin);
+}
+
 async function sendEmail(env, rec) {
   if (!env.GOOGLE_REFRESH_TOKEN || !env.GMAIL_SENDER) return false;
   const token = await getGoogleAccessToken(env);
@@ -273,14 +407,36 @@ async function sendEmail(env, rec) {
 <p style="color:#777;font-size:12px;margin-top:24px">Montage Events &middot; Shah Alam, Malaysia<br/>Reply to this email for any changes.</p>
 </div>`;
 
-  const raw =
+  // Build the invoice PDF and attach it
+  let pdfB64 = "";
+  try {
+    const pdfBytes = await buildInvoicePdf(env, rec);
+    pdfB64 = bytesToBase64(pdfBytes);
+  } catch (e) {
+    pdfB64 = ""; // if PDF fails, still send the email without attachment
+  }
+
+  const boundary = "montage_" + Math.random().toString(36).slice(2);
+  let raw =
     `From: Montage Events <${env.GMAIL_SENDER}>\r\n` +
     `To: ${rec.email}\r\n` +
     `Bcc: ${env.GMAIL_SENDER}\r\n` +
     `Subject: Montage Booking Confirmed - ${rec.reference}\r\n` +
     `MIME-Version: 1.0\r\n` +
+    `Content-Type: multipart/mixed; boundary="${boundary}"\r\n\r\n` +
+    `--${boundary}\r\n` +
     `Content-Type: text/html; charset=UTF-8\r\n\r\n` +
-    html;
+    html + `\r\n`;
+
+  if (pdfB64) {
+    raw +=
+      `--${boundary}\r\n` +
+      `Content-Type: application/pdf; name="Invoice-${rec.reference}.pdf"\r\n` +
+      `Content-Disposition: attachment; filename="Invoice-${rec.reference}.pdf"\r\n` +
+      `Content-Transfer-Encoding: base64\r\n\r\n` +
+      pdfB64.replace(/(.{76})/g, "$1\r\n") + `\r\n`;
+  }
+  raw += `--${boundary}--`;
 
   const res = await fetch(
     "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
