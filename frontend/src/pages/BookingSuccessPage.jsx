@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { CheckCircle2, Clock, XCircle, Loader2 } from "lucide-react";
+import PartyLights from "../components/PartyLights";
+import DiscoBall from "../components/DiscoBall";
 
 const API = "/api";
 
@@ -31,7 +33,11 @@ export default function BookingSuccessPage() {
   const pending = data?.status === "pending";
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white grid place-items-center px-5">
+    <div className="relative min-h-screen bg-[#050505] text-white grid place-items-center px-5 overflow-hidden">
+      <PartyLights />
+      <DiscoBall />
+      <div className="absolute inset-0 grid-noise opacity-30 pointer-events-none" />
+      <div className="absolute top-1/4 left-1/4 w-[400px] h-[400px] rounded-full bg-neon-cyan/10 blur-[140px] pointer-events-none" />
       <div className="max-w-md w-full text-center">
         {loading ? (
           <><Loader2 size={40} className="animate-spin text-neon-cyan mx-auto" />
