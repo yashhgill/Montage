@@ -144,7 +144,7 @@ export default function BookingsPage() {
         {step === 0 && (
           <div className="animate-fade-up">
             <h2 className="font-display font-black text-3xl sm:text-4xl tracking-tighter mb-2">How did you hear about us?</h2>
-            <p className="text-white/55 mb-7">This helps us serve you better — and unlocks a perk for our event guests.</p>
+            <p className="text-white/55 mb-7">This helps us tailor your experience.</p>
             <div className="grid sm:grid-cols-2 gap-3">
               {HEARD_OPTIONS.map((o) => {
                 const active = form.heard_from === o.id;
@@ -156,21 +156,10 @@ export default function BookingsPage() {
                       <span className="font-semibold">{o.label}</span>
                       {active && <Check size={18} className="text-neon-cyan" />}
                     </div>
-                    {o.perk && (
-                      <span className="mt-2 inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wide text-neon-lime">
-                        <Sparkles size={12} /> Complimentary upgrades
-                      </span>
-                    )}
                   </button>
                 );
               })}
             </div>
-            {form.is_complimentary && (
-              <div className="mt-5 p-5 rounded-2xl border border-neon-lime/40 bg-neon-lime/5">
-                <p className="font-bold text-neon-lime flex items-center gap-2"><Sparkles size={16} /> Welcome back!</p>
-                <p className="text-sm text-white/70 mt-1">As a recent-event guest, your booking includes complimentary upgrades: a welcome mocktail station, couple signature cocktails, and a choice of 1 bottle of champagne or 72 bottles of beer on confirmed bookings.</p>
-              </div>
-            )}
             <input value={form.heard_from_detail} onChange={(e) => set({ heard_from_detail: e.target.value })}
               placeholder="Anything else you'd like us to know? (optional)"
               className="mt-5 w-full bg-white/[0.04] border border-white/12 rounded-xl px-4 py-3 text-sm outline-none focus:border-neon-cyan" />
