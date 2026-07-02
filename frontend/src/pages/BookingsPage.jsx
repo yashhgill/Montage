@@ -3,6 +3,11 @@ import axios from "axios";
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
 import { Check, ChevronLeft, ChevronRight, Sparkles, CalendarDays, MapPin, Users, Loader2 } from "lucide-react";
+import PartyLights from "../components/PartyLights";
+import DiscoBall from "../components/DiscoBall";
+import CursorGlow from "../components/CursorGlow";
+
+const R2 = "https://pub-b849c3b830534eeea60b6844defeeb9f.r2.dev/images/Packages";
 
 const API = "/api";
 
@@ -17,19 +22,19 @@ const HEARD_OPTIONS = [
 
 // Packages pulled from the Montage posters
 const PACKAGES = [
-  { id: "house-party", group: "Party", name: "House Party Combo", price: "RM 3,999", pax: "50 - 100 pax",
+  { id: "house-party", poster: `${R2}/house-party.jpg`, group: "Party", name: "House Party Combo", price: "RM 3,999", pax: "50 - 100 pax",
     points: ["Premium spirits", "Professional bartender", "Ice & mixers", "48 complimentary beers", "Portable bar setup"] },
-  { id: "corporate-prestige", group: "Corporate", name: "Corporate Prestige", price: "RM 7,999", pax: "100 - 200 pax",
+  { id: "corporate-prestige", poster: `${R2}/corporate-prestige.jpg`, group: "Corporate", name: "Corporate Prestige", price: "RM 7,999", pax: "100 - 200 pax",
     points: ["4 whiskey · 4 gin · 4 choice bottles", "2 professional bartenders", "48 complimentary beers", "Premium mixers & garnishes", "Premium portable bar setup"] },
-  { id: "corporate-signature", group: "Corporate", name: "Corporate Signature", price: "RM 13,999", pax: "250 - 500 pax",
+  { id: "corporate-signature", poster: `${R2}/corporate-signature.jpg`, group: "Corporate", name: "Corporate Signature", price: "RM 13,999", pax: "250 - 500 pax",
     points: ["8 whiskey · 8 gin · 8 choice bottles", "3 professional bartenders", "48 complimentary beers", "Branded cocktail menu", "Luxury portable bar + transport"] },
-  { id: "corporate-sovereign", group: "Corporate", name: "Corporate Sovereign Reserve", price: "RM 24,999", pax: "500+ pax",
+  { id: "corporate-sovereign", poster: `${R2}/corporate-sovereign.jpg`, group: "Corporate", name: "Corporate Sovereign Reserve", price: "RM 24,999", pax: "500+ pax",
     points: ["15 whiskey · 15 gin · 15 choice bottles", "4 bartenders + event supervisor", "48 complimentary beers", "Company-themed cocktails", "Luxury LED bar + branding"] },
-  { id: "wedding-essential", group: "Wedding", name: "Wedding Essential", price: "RM 4,999", pax: "200 pax",
+  { id: "wedding-essential", poster: `${R2}/wedding-packages.jpg`, group: "Wedding", name: "Wedding Essential", price: "RM 4,999", pax: "200 pax",
     points: ["8 premium spirit bottles", "2 professional bartenders", "Mixers, fruits & garnishes", "Ice, cups & setup", "Transport within Klang Valley"] },
-  { id: "wedding-signature", group: "Wedding", name: "Wedding Signature", price: "RM 7,999", pax: "350 pax",
+  { id: "wedding-signature", poster: `${R2}/wedding-packages.jpg`, group: "Wedding", name: "Wedding Signature", price: "RM 7,999", pax: "350 pax",
     points: ["12 premium spirit bottles", "3 professional bartenders", "2 barbacks", "Premium mixers & unlimited ice", "Transport within Klang Valley"] },
-  { id: "wedding-grand", group: "Wedding", name: "Wedding Grand Celebration", price: "RM 13,999", pax: "500 pax",
+  { id: "wedding-grand", poster: `${R2}/wedding-packages.jpg`, group: "Wedding", name: "Wedding Grand Celebration", price: "RM 13,999", pax: "500 pax",
     points: ["24 premium spirit bottles", "4 professional bartenders", "3 barbacks", "Unlimited ice & luxury styling", "Transport within Klang Valley"] },
 ];
 
@@ -101,7 +106,14 @@ export default function BookingsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white">
+    <div className="relative min-h-screen bg-[#050505] text-white overflow-x-hidden">
+      <CursorGlow />
+      <PartyLights />
+      <DiscoBall />
+      <div className="absolute inset-0 grid-noise opacity-30 pointer-events-none" />
+      <div className="absolute -top-32 -left-20 w-[460px] h-[460px] rounded-full bg-neon-pink/10 blur-[140px] pointer-events-none" />
+      <div className="absolute top-1/3 right-0 w-[420px] h-[420px] rounded-full bg-neon-cyan/10 blur-[140px] pointer-events-none" />
+      <div className="relative z-[2]">
       {/* Top bar */}
       <div className="border-b border-white/10 bg-black/60 backdrop-blur-xl sticky top-0 z-30">
         <div className="max-w-4xl mx-auto px-5 py-4 flex items-center justify-between">
@@ -184,7 +196,14 @@ export default function BookingsPage() {
                 return (
                   <button key={p.id}
                     onClick={() => set({ package_id: p.id, package_name: p.name, package_price: p.price, pax: p.pax })}
-                    className={`text-left p-6 rounded-2xl border transition-all ${active ? "border-neon-cyan bg-neon-cyan/5 neon-glow-cyan" : "border-white/12 bg-white/[0.03] hover:border-white/30"}`}>
+                    className={`text-left rounded-2xl border transition-all overflow-hidden ${active ? "border-neon-cyan bg-neon-cyan/5 neon-glow-cyan" : "border-white/12 bg-white/[0.03] hover:border-white/30"}`}>
+                    {p.poster && (
+                      <div className="relative h-40 w-full overflow-hidden bg-black">
+                        <img src={p.poster} alt={p.name} loading="lazy" className="w-full h-full object-cover object-top opacity-90" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A12] via-transparent to-transparent" />
+                      </div>
+                    )}
+                    <div className="p-6">
                     <div className="flex items-start justify-between">
                       <div>
                         <h3 className="font-display font-bold text-xl">{p.name}</h3>
@@ -199,6 +218,7 @@ export default function BookingsPage() {
                         </li>
                       ))}
                     </ul>
+                    </div>
                   </button>
                 );
               })}
@@ -315,6 +335,7 @@ export default function BookingsPage() {
             </button>
           )}
         </div>
+      </div>
       </div>
     </div>
   );
