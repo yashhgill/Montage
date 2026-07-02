@@ -208,7 +208,16 @@ async function handleTestFire(request, env) {
     deposit_rm: 500,
   };
 
-  const result = { reference, calendar_event_id: "", email_sent: false, errors: [] };
+  const result = {
+    reference, calendar_event_id: "", email_sent: false, errors: [],
+    env_present: {
+      GOOGLE_REFRESH_TOKEN: !!env.GOOGLE_REFRESH_TOKEN,
+      GOOGLE_CLIENT_ID: !!env.GOOGLE_CLIENT_ID,
+      GOOGLE_CLIENT_SECRET: !!env.GOOGLE_CLIENT_SECRET,
+      GOOGLE_CALENDAR_ID: !!env.GOOGLE_CALENDAR_ID,
+      GMAIL_SENDER: !!env.GMAIL_SENDER,
+    },
+  };
   try {
     result.calendar_event_id = await blockCalendar(env, rec);
   } catch (e) { result.errors.push("calendar: " + e.message); }
