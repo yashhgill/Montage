@@ -4,7 +4,7 @@ import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
 import { Check, ChevronLeft, ChevronRight, Sparkles, CalendarDays, MapPin, Users, Loader2 } from "lucide-react";
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+const API = "/api";
 
 const HEARD_OPTIONS = [
   { id: "recent_event", label: "At a recent Montage event", perk: true },
