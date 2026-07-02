@@ -361,7 +361,8 @@ async function buildInvoicePdf(env, rec) {
   const due = fullPaymentDue(rec.event_date);
   const terms = [
     "\u2022 The RM" + deposit + " deposit is non-refundable in the event of cancellation.",
-    "\u2022 Balance of RM" + balance.toLocaleString("en-MY") + ".00 must be paid by " + due + " (30 days before the event).",
+    "\u2022 The full package amount of RM" + total.toLocaleString("en-MY") + ".00 must be paid in full before " + due + " (30 days before the event).",
+    "\u2022 Remaining balance after deposit: RM" + balance.toLocaleString("en-MY") + ".00.",
     "\u2022 This invoice confirms your deposit and secures your event date and time slot.",
   ];
   for (const t of terms) { page.drawText(t, { x: M, y, size: 9, font, color: grey }); y -= 13; }
@@ -402,7 +403,7 @@ async function sendEmail(env, rec) {
 <div style="background:#2a1500;border:1px solid #FF6A00;border-radius:10px;padding:16px;font-size:13px;color:#ffcfa0">
 <p style="margin:0 0 6px"><b>Important terms</b></p>
 <p style="margin:0 0 6px">&bull; The RM${rec.deposit_rm} deposit is non-refundable in the event of cancellation.</p>
-<p style="margin:0">&bull; Full payment must be completed no later than <b>${due}</b> (30 days before your event).</p>
+<p style="margin:0">&bull; The full package amount (RM${parsePrice(rec.package_price).toLocaleString("en-MY")}.00) must be paid in full before <b>${due}</b> (30 days before your event).</p>
 </div>
 <p style="color:#777;font-size:12px;margin-top:24px">Montage Events &middot; Shah Alam, Malaysia<br/>Reply to this email for any changes.</p>
 </div>`;
