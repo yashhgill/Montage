@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Menu, X } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const LOGO = "https://pub-b849c3b830534eeea60b6844defeeb9f.r2.dev/images/montage-gold-logo.png";
 const NAV = [
@@ -59,12 +60,17 @@ export default function Header() {
               </a>
             );
           })}
+          <Link to="/bookings"
+            className="relative text-neon-cyan font-semibold transition-colors duration-200 hover:text-white"
+            data-testid="nav-book">
+            Book
+          </Link>
         </nav>
 
-        <a href="#contact" data-testid="header-cta-book"
+        <Link to="/bookings" data-testid="header-cta-book"
           className="hidden sm:inline-flex items-center justify-center px-5 py-2.5 rounded-full bg-neon-pink text-white text-sm font-bold neon-glow-pink hover:scale-[1.06] active:scale-95 transition-transform">
           Book Now
-        </a>
+        </Link>
 
         <button className="lg:hidden text-white p-2" onClick={() => setOpen(s => !s)}
           aria-label="Toggle menu" data-testid="mobile-menu-toggle">
@@ -86,6 +92,11 @@ export default function Header() {
                 {n.label}
               </a>
             ))}
+            <Link to="/bookings" onClick={() => setOpen(false)}
+              className="px-6 py-4 text-sm font-bold text-neon-cyan hover:bg-white/5 transition-colors"
+              data-testid="mobile-nav-book">
+              Book an Event →
+            </Link>
           </div>
         </div>
       )}
