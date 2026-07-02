@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import { CheckCircle2, Clock, XCircle, Loader2 } from "lucide-react";
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+const API = "/api";
 
 export default function BookingSuccessPage() {
   const [state, setState] = useState({ loading: true, data: null });
