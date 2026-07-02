@@ -251,6 +251,16 @@ async function handleTestFire(request, env) {
   return json(result);
 }
 
+// ─── base64url helpers (for Gmail raw message) ──────────────
+function b64urlFromBytes(bytes) {
+  let bin = "";
+  for (const byte of bytes) bin += String.fromCharCode(byte);
+  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+function b64urlFromString(str) {
+  return b64urlFromBytes(new TextEncoder().encode(str));
+}
+
 // ─── Google auth (OAuth refresh token) ──────────────────────
 async function getGoogleAccessToken(env) {
   const body = new URLSearchParams({
