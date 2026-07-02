@@ -45,7 +45,6 @@ export async function onRequest(context) {
     if (method === "POST" && head === "create") return handleCreate(request, env);
     if (method === "POST" && head === "callback") return handleCallback(request, env);
     if (method === "GET" && head === "status") return handleStatus(env, route[1]);
-    if (method === "GET" && head === "test-fire") return handleTestFire(request, env);
     return json({ detail: "Not found" }, 404);
   } catch (err) {
     return json({ detail: err.message || "Server error" }, 500);
@@ -175,81 +174,6 @@ async function handleStatus(env, ref) {
   });
 }
 
-
-// ─── TEMPORARY demo endpoint — remove after demo ────────────
-// GET /api/bookings/test-fire?key=SECRET&email=you@x.com
-// Fires the real calendar-block + confirmation-email using live Google creds.
-async function handleTestFire(request, env) {
-  const url = new URL(request.url);
-  const key = url.searchParams.get("key") || "";
-  if (!env.TEST_FIRE_KEY || key !== env.TEST_FIRE_KEY) {
-    return json({ detail: "Unauthorized" }, 401);
-  }
-  const email = url.searchParams.get("email") || env.GMAIL_SENDER;
-  const name = url.searchParams.get("name") || "Demo Guest";
-
-  // Build a realistic demo booking (event ~60 days out, evening slot)
-  const d = new Date(Date.now() + 60 * 864e5);
-  const eventDate = d.toISOString().slice(0, 10);
-  const reference = "MTG-DEMO-" + Math.random().toString(36).slice(2, 6).toUpperCase();
-  const rec = {
-    reference,
-    status: "paid",
-    package_name: "Wedding Signature",
-    package_price: "RM 7,999",
-    venue: "MAHSA Ballroom, Shah Alam",
-    event_date: eventDate,
-    time_slot: "Evening (6pm - 11pm)",
-    pax: "350 pax",
-    notes: "Demo booking (test-fire endpoint)",
-    name,
-    email,
-    phone: "60182085097",
-    deposit_rm: 500,
-  };
-
-  const result = {
-    reference, calendar_event_id: "", email_sent: false, errors: [],
-    env_present: {
-      GOOGLE_REFRESH_TOKEN: !!env.GOOGLE_REFRESH_TOKEN,
-      GOOGLE_CLIENT_ID: !!env.GOOGLE_CLIENT_ID,
-      GOOGLE_CLIENT_SECRET: !!env.GOOGLE_CLIENT_SECRET,
-      GOOGLE_CALENDAR_ID: !!env.GOOGLE_CALENDAR_ID,
-      GMAIL_SENDER: !!env.GMAIL_SENDER,
-    },
-    // safe diagnostics: names + shapes only, never secret values
-    all_google_gmail_keys: Object.keys(env).filter(function (k) {
-      return k.indexOf("GOOGLE") >= 0 || k.indexOf("GMAIL") >= 0 || k.indexOf("REFRESH") >= 0 || k.indexOf("TOKEN") >= 0;
-    }),
-    refresh_token_len: env.GOOGLE_REFRESH_TOKEN ? String(env.GOOGLE_REFRESH_TOKEN).length : 0,
-    refresh_token_prefix: env.GOOGLE_REFRESH_TOKEN ? String(env.GOOGLE_REFRESH_TOKEN).slice(0, 3) : "",
-  };
-  try {
-    result.calendar_event_id = await blockCalendar(env, rec);
-  } catch (e) { result.errors.push("calendar: " + e.message); }
-  try {
-    result.email_sent = await sendEmail(env, rec);
-  } catch (e) { result.errors.push("email: " + e.message); }
-
-  // Also store the demo row in D1 so it shows in admin/history
-  try {
-    await env.DB.prepare(
-      `INSERT INTO event_bookings
-       (reference,status,heard_from,heard_from_detail,is_complimentary,package_id,package_name,
-        package_price,venue,event_date,time_slot,pax,notes,name,email,phone,bill_code,deposit_rm,
-        calendar_event_id,email_sent,created_at,paid_at)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
-    ).bind(
-      rec.reference, "paid", "demo", "", 0, "wedding-signature", rec.package_name, rec.package_price,
-      rec.venue, rec.event_date, rec.time_slot, rec.pax, rec.notes, rec.name, rec.email, rec.phone,
-      "DEMO", 500, result.calendar_event_id, result.email_sent ? 1 : 0,
-      new Date().toISOString(), new Date().toISOString()
-    ).run();
-    result.saved_to_db = true;
-  } catch (e) { result.errors.push("db: " + e.message); }
-
-  return json(result);
-}
 
 // ─── base64url helpers (for Gmail raw message) ──────────────
 function b64urlFromBytes(bytes) {
