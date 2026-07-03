@@ -22,23 +22,32 @@ const HEARD_OPTIONS = [
 
 // Packages pulled from the Montage posters
 const PACKAGES = [
-  { id: "house-party", poster: `${R2}/house-party.jpg`, group: "Party", name: "House Party Combo", price: "RM 3,999", pax: "50 - 100 pax",
+  // ─── Bar Services (full-day) ──────────────────────────────
+  { id: "house-party", poster: `${R2}/house-party.jpg`, group: "Party", fullDay: true, name: "House Party Combo", price: "RM 3,999", pax: "50 - 100 pax",
     points: ["Premium spirits", "Professional bartender", "Ice & mixers", "48 complimentary beers", "Portable bar setup"] },
-  { id: "corporate-prestige", poster: `${R2}/corporate-prestige.jpg`, group: "Corporate", name: "Corporate Prestige", price: "RM 7,999", pax: "100 - 200 pax",
+  { id: "corporate-prestige", poster: `${R2}/corporate-prestige.jpg`, group: "Corporate", fullDay: true, name: "Corporate Prestige", price: "RM 7,999", pax: "100 - 200 pax",
     points: ["4 whiskey · 4 gin · 4 choice bottles", "2 professional bartenders", "48 complimentary beers", "Premium mixers & garnishes", "Premium portable bar setup"] },
-  { id: "corporate-signature", poster: `${R2}/corporate-signature.jpg`, group: "Corporate", name: "Corporate Signature", price: "RM 13,999", pax: "250 - 500 pax",
+  { id: "corporate-signature", poster: `${R2}/corporate-signature.jpg`, group: "Corporate", fullDay: true, name: "Corporate Signature", price: "RM 13,999", pax: "250 - 500 pax",
     points: ["8 whiskey · 8 gin · 8 choice bottles", "3 professional bartenders", "48 complimentary beers", "Branded cocktail menu", "Luxury portable bar + transport"] },
-  { id: "corporate-sovereign", poster: `${R2}/corporate-sovereign.jpg`, group: "Corporate", name: "Corporate Sovereign Reserve", price: "RM 24,999", pax: "500+ pax",
+  { id: "corporate-sovereign", poster: `${R2}/corporate-sovereign.jpg`, group: "Corporate", fullDay: true, name: "Corporate Sovereign Reserve", price: "RM 24,999", pax: "500+ pax",
     points: ["15 whiskey · 15 gin · 15 choice bottles", "4 bartenders + event supervisor", "48 complimentary beers", "Company-themed cocktails", "Luxury LED bar + branding"] },
-  { id: "wedding-essential", poster: `${R2}/wedding-packages.jpg`, group: "Wedding", name: "Wedding Essential", price: "RM 4,999", pax: "200 pax",
+  { id: "wedding-essential", poster: `${R2}/wedding-packages.jpg`, group: "Wedding", fullDay: true, name: "Wedding Essential", price: "RM 4,999", pax: "200 pax",
     points: ["8 premium spirit bottles", "2 professional bartenders", "Mixers, fruits & garnishes", "Ice, cups & setup", "Transport within Klang Valley"] },
-  { id: "wedding-signature", poster: `${R2}/wedding-packages.jpg`, group: "Wedding", name: "Wedding Signature", price: "RM 7,999", pax: "350 pax",
+  { id: "wedding-signature", poster: `${R2}/wedding-packages.jpg`, group: "Wedding", fullDay: true, name: "Wedding Signature", price: "RM 7,999", pax: "350 pax",
     points: ["12 premium spirit bottles", "3 professional bartenders", "2 barbacks", "Premium mixers & unlimited ice", "Transport within Klang Valley"] },
-  { id: "wedding-grand", poster: `${R2}/wedding-packages.jpg`, group: "Wedding", name: "Wedding Grand Celebration", price: "RM 13,999", pax: "500 pax",
+  { id: "wedding-grand", poster: `${R2}/wedding-packages.jpg`, group: "Wedding", fullDay: true, name: "Wedding Grand Celebration", price: "RM 13,999", pax: "500 pax",
     points: ["24 premium spirit bottles", "4 professional bartenders", "3 barbacks", "Unlimited ice & luxury styling", "Transport within Klang Valley"] },
+
+  // ─── Smoke & Grill (full-day) ─────────────────────────────
+  { id: "smoke-feast", poster: `${R2}/smoke-feast.jpg`, group: "Smoke & Grill", fullDay: true, name: "The Smoke Feast", price: "RM 2,750", pax: "Min 50 pax",
+    points: ["200 BBQ chicken pieces (drumettes & wings)", "Live BBQ cooking station", "1 professional BBQ chef", "Signature sides + sauces & condiments", "Disposable plates, napkins & setup"] },
+  { id: "smoke-grill-experience", poster: `${R2}/smoke-grill-experience.jpg`, group: "Smoke & Grill", fullDay: true, name: "The Smoke & Grill Experience", price: "RM 3,999", pax: "Min 50 pax",
+    points: ["200 BBQ chicken pieces", "25 premium shisha units included", "Live BBQ station + professional chef", "Signature sides & exclusive shisha flavours", "Dedicated shisha attendant + full setup"] },
+  { id: "cloud-essence", poster: `${R2}/cloud-essence.jpg`, group: "Smoke & Grill", fullDay: true, name: "Cloud Essence Lounge", price: "RM 1,250", pax: "25 shisha units",
+    points: ["25 premium shisha units", "Quality coals & hygienic mouthpieces", "Dedicated shisha attendant", "Complete setup, operation & collection", "Signature cloud blend selection"] },
 ];
 
-const GROUPS = ["Wedding", "Corporate", "Party"];
+const GROUPS = ["Wedding", "Corporate", "Party", "Smoke & Grill"];
 
 function fmtDate(d) {
   if (!d) return "";
@@ -57,7 +66,7 @@ export default function BookingsPage() {
 
   const [form, setForm] = useState({
     heard_from: "", heard_from_detail: "", is_complimentary: false,
-    package_id: "", package_name: "", package_price: "",
+    package_id: "", package_name: "", package_price: "", is_full_day: false,
     venue: "", event_date: "", time_slot: "", pax: "", notes: "",
     name: "", email: "", phone: "",
   });
@@ -77,19 +86,41 @@ export default function BookingsPage() {
     return map;
   }, [taken]);
 
-  const fullyBookedDates = useMemo(() => {
-    const counts = {};
-    taken.forEach((t) => { counts[t.event_date] = (counts[t.event_date] || 0) + 1; });
-    return Object.entries(counts).filter(([, c]) => c >= config.time_slots.length && config.time_slots.length > 0)
-      .map(([d]) => { const [y, m, day] = d.split("-").map(Number); return new Date(y, m - 1, day); });
-  }, [taken, config.time_slots.length]);
+  // dates that have a full-day booking (whole date reserved)
+  const fullDayDates = useMemo(() => {
+    const set = {};
+    taken.forEach((t) => { if (t.time_slot === "Full Day") set[t.event_date] = true; });
+    return set;
+  }, [taken]);
+
+  // dates that have ANY booking (used to block the calendar for full-day packages)
+  const anyBookingDates = useMemo(() => {
+    const set = {};
+    taken.forEach((t) => { set[t.event_date] = true; });
+    return set;
+  }, [taken]);
+
+  const toDateObjs = (map) => Object.keys(map).map((d) => {
+    const [y, m, day] = d.split("-").map(Number); return new Date(y, m - 1, day);
+  });
+
+  // dates fully unavailable on the calendar depend on the selected package type
+  const disabledDates = useMemo(() => {
+    if (form.is_full_day) {
+      // full-day package: any date with any existing booking is unavailable
+      return toDateObjs(anyBookingDates);
+    }
+    // time-slot package: only dates that are wholly taken by a full-day booking
+    // (individual slot availability is handled by the slot buttons)
+    return toDateObjs(fullDayDates);
+  }, [form.is_full_day, anyBookingDates, fullDayDates]);
 
   const steps = ["Survey", "Package", "Date & Venue", "Details", "Payment"];
 
   const canNext = () => {
     if (step === 0) return !!form.heard_from;
     if (step === 1) return !!form.package_id;
-    if (step === 2) return !!form.event_date && !!form.time_slot && !!form.venue.trim();
+    if (step === 2) return !!form.event_date && (form.is_full_day || !!form.time_slot) && !!form.venue.trim();
     if (step === 3) return form.name.trim() && /\S+@\S+\.\S+/.test(form.email) && form.phone.trim();
     return true;
   };
@@ -184,7 +215,7 @@ export default function BookingsPage() {
                 const active = form.package_id === p.id;
                 return (
                   <button key={p.id}
-                    onClick={() => set({ package_id: p.id, package_name: p.name, package_price: p.price, pax: p.pax })}
+                    onClick={() => set({ package_id: p.id, package_name: p.name, package_price: p.price, pax: p.pax, is_full_day: !!p.fullDay, time_slot: p.fullDay ? "Full Day" : "" })}
                     className={`text-left rounded-2xl border transition-all overflow-hidden ${active ? "border-neon-cyan bg-neon-cyan/5 neon-glow-cyan" : "border-white/12 bg-white/[0.03] hover:border-white/30"}`}>
                     {p.poster && (
                       <div className="relative h-40 w-full overflow-hidden bg-black">
@@ -225,27 +256,38 @@ export default function BookingsPage() {
                 <DayPicker
                   mode="single"
                   selected={selectedDate}
-                  onSelect={(d) => { setSelectedDate(d); set({ event_date: fmtDate(d), time_slot: "" }); }}
-                  disabled={[{ before: new Date(Date.now() + 3 * 864e5) }, ...fullyBookedDates]}
+                  onSelect={(d) => { setSelectedDate(d); set({ event_date: fmtDate(d), time_slot: form.is_full_day ? "Full Day" : "" }); }}
+                  disabled={[{ before: new Date(Date.now() + 3 * 864e5) }, ...disabledDates]}
                   styles={{ caption: { color: "#fff" }, head: { color: "#00F0FF" } }}
                   modifiersStyles={{ selected: { background: "#00F0FF", color: "#000" } }}
                 />
               </div>
               <div>
-                <label className="text-xs uppercase tracking-[0.25em] text-neon-cyan font-bold flex items-center gap-2"><CalendarDays size={14} /> Time slot</label>
-                <div className="grid grid-cols-1 gap-2 mt-3">
-                  {config.time_slots.map((slot) => {
-                    const isTaken = form.event_date && takenForSlot[`${form.event_date}|${slot}`];
-                    const active = form.time_slot === slot;
-                    return (
-                      <button key={slot} disabled={!form.event_date || isTaken}
-                        onClick={() => set({ time_slot: slot })}
-                        className={`px-4 py-3 rounded-xl text-sm font-semibold border text-left transition-all disabled:opacity-35 disabled:cursor-not-allowed ${active ? "border-neon-cyan bg-neon-cyan/10" : "border-white/12 bg-white/[0.03] hover:border-white/30"}`}>
-                        {slot} {isTaken && <span className="text-neon-pink text-xs">· booked</span>}
-                      </button>
-                    );
-                  })}
-                </div>
+                {form.is_full_day ? (
+                  <div className="p-4 rounded-xl border border-neon-cyan/30 bg-neon-cyan/5">
+                    <p className="text-xs uppercase tracking-[0.25em] text-neon-cyan font-bold flex items-center gap-2 mb-1"><CalendarDays size={14} /> Full-day event</p>
+                    <p className="text-sm text-white/70">This package reserves the <b>entire day</b>. Once confirmed, no other event can be booked on {form.event_date || "the selected date"}.</p>
+                  </div>
+                ) : (
+                  <>
+                    <label className="text-xs uppercase tracking-[0.25em] text-neon-cyan font-bold flex items-center gap-2"><CalendarDays size={14} /> Time slot</label>
+                    <div className="grid grid-cols-1 gap-2 mt-3">
+                      {config.time_slots.filter((s) => s !== "Full Day").map((slot) => {
+                        const slotTaken = form.event_date && takenForSlot[`${form.event_date}|${slot}`];
+                        const dayFullyBooked = form.event_date && fullDayDates[form.event_date];
+                        const isTaken = slotTaken || dayFullyBooked;
+                        const active = form.time_slot === slot;
+                        return (
+                          <button key={slot} disabled={!form.event_date || isTaken}
+                            onClick={() => set({ time_slot: slot })}
+                            className={`px-4 py-3 rounded-xl text-sm font-semibold border text-left transition-all disabled:opacity-35 disabled:cursor-not-allowed ${active ? "border-neon-cyan bg-neon-cyan/10" : "border-white/12 bg-white/[0.03] hover:border-white/30"}`}>
+                            {slot} {isTaken && <span className="text-neon-pink text-xs">· booked</span>}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
                 <label className="mt-6 text-xs uppercase tracking-[0.25em] text-neon-cyan font-bold flex items-center gap-2"><MapPin size={14} /> Venue</label>
                 <input value={form.venue} onChange={(e) => set({ venue: e.target.value })}
                   placeholder="Venue name / address"
