@@ -82,11 +82,26 @@ async function handleCreate(request, env) {
   if (!env.TOYYIBPAY_SECRET_KEY || !env.TOYYIBPAY_CATEGORY_CODE)
     return json({ detail: "Payment gateway not configured yet" }, 503);
 
-  // block double-booking a paid slot
-  const clash = await env.DB.prepare(
-    `SELECT reference FROM event_bookings WHERE event_date=? AND time_slot=? AND status='paid'`
-  ).bind(b.event_date, b.time_slot).first();
-  if (clash) return json({ detail: "That date and time slot is already booked" }, 409);
+  // Availability rules:
+  //  - a "Full Day" booking reserves the entire date
+  //  - any existing Full Day booking blocks all new bookings that date
+  //  - a slot booking blocks only that slot
+  const sameDay = await env.DB.prepare(
+    `SELECT time_slot FROM event_bookings WHERE event_date=? AND status='paid'`
+  ).bind(b.event_date).all();
+  const rows = (sameDay && sameDay.results) || [];
+  const hasFullDay = rows.some((r) => r.time_slot === "Full Day");
+  const isNewFullDay = b.time_slot === "Full Day";
+
+  if (hasFullDay) {
+    return json({ detail: "That date is already fully booked" }, 409);
+  }
+  if (isNewFullDay && rows.length > 0) {
+    return json({ detail: "That date already has a booking and cannot be reserved for a full day" }, 409);
+  }
+  if (!isNewFullDay && rows.some((r) => r.time_slot === b.time_slot)) {
+    return json({ detail: "That date and time slot is already booked" }, 409);
+  }
 
   const reference = "MTG-" + new Date().toISOString().slice(2, 10).replace(/-/g, "") + "-" +
     Math.random().toString(36).slice(2, 7).toUpperCase();
