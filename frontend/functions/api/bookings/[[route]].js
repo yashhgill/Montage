@@ -325,22 +325,21 @@ async function buildInvoicePdf(env, rec) {
   const black = rgb(0.1, 0.1, 0.12);
   const M = 48; // margin
 
-  // Header band
-  page.drawRectangle({ x: 0, y: 792, width, height: 50, color: dark });
-
-  // Logo (fetch from R2, embed)
+  // Logo (fetch from R2, embed) — larger, no black band
   try {
     const logoUrl = "https://pub-b849c3b830534eeea60b6844defeeb9f.r2.dev/images/montage-gold-logo.png";
     const imgRes = await fetch(logoUrl);
     if (imgRes.ok) {
       const bytes = new Uint8Array(await imgRes.arrayBuffer());
       const png = await pdf.embedPng(bytes);
-      const scaled = png.scaleToFit(120, 38);
-      page.drawImage(png, { x: M, y: 798, width: scaled.width, height: scaled.height });
+      const scaled = png.scaleToFit(200, 80);
+      page.drawImage(png, { x: M, y: 770, width: scaled.width, height: scaled.height });
     }
   } catch (e) { /* logo optional */ }
 
-  page.drawText("INVOICE", { x: width - M - 90, y: 806, size: 22, font: bold, color: gold });
+  // "INVOICE" wordmark top-right with a gold underline
+  page.drawText("INVOICE", { x: width - M - 120, y: 800, size: 28, font: bold, color: gold });
+  page.drawLine({ start: { x: width - M - 122, y: 794 }, end: { x: width - M, y: 794 }, thickness: 2, color: gold });
 
   let y = 750;
   page.drawText("Montage Event Management", { x: M, y, size: 12, font: bold, color: black });
