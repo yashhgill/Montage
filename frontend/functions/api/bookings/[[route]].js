@@ -122,7 +122,7 @@ async function handleCreate(request, env) {
     billTo: b.name,
     billEmail: b.email,
     billPhone: b.phone || "0000000000",
-    billPaymentChannel: "2",
+    billPaymentChannel: env.TOYYIBPAY_CHANNEL || "2",
   });
   const resp = await fetch(`${TOYYIBPAY_BASE}/index.php/api/createBill`, {
     method: "POST",
