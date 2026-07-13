@@ -24,6 +24,7 @@ export async function onRequest(context) {
     if (method === "POST" && head === "subscribe") return handleSubscribe(request, env);
     if (method === "GET" && head === "admin" && sub === "list") return handleList(request, env);
     if (method === "POST" && head === "admin" && sub === "send") return handleSend(request, env);
+    if (method === "POST" && head === "admin" && sub === "preview") return handlePreview(request, env);
     return json({ detail: "Not found" }, 404);
   } catch (err) {
     return json({ detail: err.message || "Server error" }, 500);
@@ -65,6 +66,19 @@ async function handleList(request, env) {
   return json({ subscribers: results || [], count: (results || []).length });
 }
 
+
+// ─── Admin: render preview HTML (no send) ───────────────────
+async function handlePreview(request, env) {
+  if (!checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
+  let body;
+  try { body = await request.json(); } catch { return json({ detail: "Invalid request" }, 400); }
+  const heading = String(body.heading || "").trim();
+  const bodyHtml = String(body.body_html || "").trim();
+  const posterUrl = String(body.poster_url || "").trim();
+  const html = wrapTemplate(env, heading, bodyHtml, posterUrl);
+  return json({ html });
+}
+
 // ─── Admin: send newsletter to all active subscribers ───────
 async function handleSend(request, env) {
   if (!checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
@@ -74,6 +88,7 @@ async function handleSend(request, env) {
   const subject = String(body.subject || "").trim();
   const heading = String(body.heading || "").trim();
   const bodyHtml = String(body.body_html || "").trim();
+  const posterUrl = String(body.poster_url || "").trim();
   if (!subject || !bodyHtml) return json({ detail: "subject and body_html are required" }, 400);
 
   // recipients: either a single test address, or all active subscribers
@@ -90,7 +105,7 @@ async function handleSend(request, env) {
   if (!recipients.length) return json({ detail: "No subscribers to send to" }, 400);
 
   const token = await getGoogleAccessToken(env);
-  const html = wrapTemplate(env, heading, bodyHtml);
+  const html = wrapTemplate(env, heading, bodyHtml, posterUrl);
 
   // Gmail sends one message; we BCC everyone so addresses stay private.
   // For large lists we chunk into batches of 50 BCC per message.
@@ -115,7 +130,7 @@ async function handleSend(request, env) {
 }
 
 // ─── Email template wrapper (Montage themed) ────────────────
-function wrapTemplate(env, heading, innerHtml) {
+function wrapTemplate(env, heading, innerHtml, posterUrl) {
   const site = env.SITE_URL || "https://montageevents.my";
   const logo = "https://pub-b849c3b830534eeea60b6844defeeb9f.r2.dev/images/montage-gold-logo.png";
   return `<body style="margin:0;padding:0;background-color:#050508;">
@@ -130,6 +145,9 @@ function wrapTemplate(env, heading, innerHtml) {
 </td></tr>
 ${heading ? `<tr><td align="center" style="padding:28px 40px 0 40px;">
 <h1 style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:30px;line-height:1.15;font-weight:800;color:#ffffff;">${heading}</h1>
+</td></tr>` : ""}
+${posterUrl ? `<tr><td style="padding:22px 44px 0 44px;">
+<img src="${posterUrl}" alt="Montage" width="512" style="display:block;width:100%;max-width:512px;height:auto;border-radius:12px;margin:0 auto;">
 </td></tr>` : ""}
 <tr><td style="padding:22px 44px 8px 44px;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.7;color:#c8c8d0;">
 ${innerHtml}
