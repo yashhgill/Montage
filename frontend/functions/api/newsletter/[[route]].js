@@ -79,7 +79,8 @@ async function handleSend(request, env) {
   // recipients: either a single test address, or all active subscribers
   let recipients = [];
   if (body.test_to) {
-    recipients = [String(body.test_to).trim().toLowerCase()];
+    const list = Array.isArray(body.test_to) ? body.test_to : [body.test_to];
+    recipients = list.map((e) => String(e).trim().toLowerCase()).filter(Boolean);
   } else {
     const { results } = await env.DB.prepare(
       `SELECT email FROM newsletter_subscribers WHERE status='active'`
