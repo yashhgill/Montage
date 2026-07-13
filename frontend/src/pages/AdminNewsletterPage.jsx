@@ -1,6 +1,6 @@
 import { useState } from "react";
 import axios from "axios";
-import { Loader2, Send, Eye, Lock, Users, Image as ImageIcon, CheckCircle2 } from "lucide-react";
+import { Loader2, Send, Eye, Lock, Users, Image as ImageIcon, CheckCircle2, Mail, Phone } from "lucide-react";
 
 const API = "/api";
 
@@ -9,6 +9,9 @@ export default function AdminNewsletterPage() {
   const [authed, setAuthed] = useState(false);
   const [count, setCount] = useState(null);
   const [authError, setAuthError] = useState("");
+  const [tab, setTab] = useState("compose"); // compose | leads
+  const [leads, setLeads] = useState([]);
+  const [leadsLoaded, setLeadsLoaded] = useState(false);
 
   const [subject, setSubject] = useState("");
   const [heading, setHeading] = useState("");
@@ -28,6 +31,7 @@ export default function AdminNewsletterPage() {
       const { data } = await axios.get(`${API}/newsletter/admin/list`, authHeaders);
       setCount(data.count);
       setAuthed(true);
+      loadLeads();
     } catch (e) {
       setAuthError(e?.response?.status === 401 ? "Wrong admin key." : "Could not connect. Try again.");
     }
@@ -69,6 +73,14 @@ export default function AdminNewsletterPage() {
     } finally { setBusy(""); }
   };
 
+  const loadLeads = async () => {
+    try {
+      const { data } = await axios.get(`${API}/newsletter/admin/leads`, authHeaders);
+      setLeads(data.leads || []);
+      setLeadsLoaded(true);
+    } catch (e) { /* ignore */ }
+  };
+
   // ─── Login gate ───
   if (!authed) {
     return (
@@ -100,10 +112,15 @@ export default function AdminNewsletterPage() {
       <div className="border-b border-white/10 bg-black/60 backdrop-blur-xl sticky top-0 z-30">
         <div className="max-w-6xl mx-auto px-5 py-4 flex items-center justify-between">
           <span className="font-display font-black tracking-tight text-lg">MONTAGE<span className="text-neon-cyan">.</span> <span className="text-white/40 text-sm font-normal">Newsletter</span></span>
-          <span className="flex items-center gap-2 text-xs text-white/60"><Users size={14} /> {count ?? "…"} subscribers</span>
+          <div className="flex items-center gap-4">
+            <button onClick={() => setTab("compose")} className={`text-sm font-semibold ${tab === "compose" ? "text-neon-cyan" : "text-white/50 hover:text-white"}`}>Compose</button>
+            <button onClick={() => setTab("leads")} className={`text-sm font-semibold ${tab === "leads" ? "text-neon-cyan" : "text-white/50 hover:text-white"}`}>Leads</button>
+            <span className="flex items-center gap-2 text-xs text-white/60"><Users size={14} /> {count ?? "…"}</span>
+          </div>
         </div>
       </div>
 
+      {tab === "compose" && (
       <div className="max-w-6xl mx-auto px-5 py-8 grid lg:grid-cols-2 gap-8">
         {/* Editor form */}
         <div>
@@ -176,6 +193,45 @@ export default function AdminNewsletterPage() {
           </div>
         </div>
       </div>
+      )}
+
+      {tab === "leads" && (
+        <div className="max-w-6xl mx-auto px-5 py-8">
+          <div className="flex items-center justify-between mb-5">
+            <h1 className="font-display font-black text-2xl">Leads <span className="text-white/40 text-base font-normal">({leads.length})</span></h1>
+            <button onClick={loadLeads} className="text-sm text-neon-cyan font-semibold hover:underline">Refresh</button>
+          </div>
+          <p className="text-xs text-white/40 mb-4">View-only. Collected from the website with consent. These stay in the system — there is no export.</p>
+          <div className="rounded-2xl border border-white/12 overflow-hidden">
+            <div className="grid grid-cols-12 gap-2 px-4 py-3 bg-white/[0.04] text-[11px] uppercase tracking-wide text-white/50 font-bold">
+              <div className="col-span-3">Name</div>
+              <div className="col-span-3">Phone</div>
+              <div className="col-span-4">Email</div>
+              <div className="col-span-2">Date</div>
+            </div>
+            {!leadsLoaded ? (
+              <div className="px-4 py-10 text-center text-white/40 text-sm">Loading…</div>
+            ) : leads.length === 0 ? (
+              <div className="px-4 py-10 text-center text-white/40 text-sm">No leads yet. They'll appear here as people submit the website form.</div>
+            ) : (
+              leads.map((l, i) => (
+                <div key={i} className="grid grid-cols-12 gap-2 px-4 py-3 border-t border-white/8 text-sm items-center">
+                  <div className="col-span-3 font-semibold truncate">{l.name || "—"}</div>
+                  <div className="col-span-3 text-white/80">
+                    <a href={`https://wa.me/${(l.phone || "").replace(/[^0-9]/g, "")}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:text-neon-lime">
+                      <Phone size={12} /> {l.phone}
+                    </a>
+                  </div>
+                  <div className="col-span-4 text-white/60 truncate">
+                    {l.email ? <a href={`mailto:${l.email}`} className="inline-flex items-center gap-1 hover:text-neon-cyan"><Mail size={12} /> {l.email}</a> : <span className="text-white/25">—</span>}
+                  </div>
+                  <div className="col-span-2 text-white/40 text-xs">{(l.created_at || "").slice(0, 10)}</div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
