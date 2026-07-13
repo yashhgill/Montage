@@ -1,7 +1,75 @@
-import { Instagram } from "lucide-react";
+import { Instagram, Mail, Loader2, Check } from "lucide-react";
+import { useState } from "react";
+import axios from "axios";
 import { PHONE_DISPLAY, EMAIL, INSTAGRAM } from "../data/content";
 
 const LOGO = "https://pub-b849c3b830534eeea60b6844defeeb9f.r2.dev/images/montage-gold-logo.png";
+
+function NewsletterSignup() {
+  const [email, setEmail] = useState("");
+  const [state, setState] = useState("idle"); // idle | loading | done | error
+  const [msg, setMsg] = useState("");
+
+  const submit = async () => {
+    if (!/^\S+@\S+\.\S+$/.test(email)) { setState("error"); setMsg("Please enter a valid email."); return; }
+    setState("loading"); setMsg("");
+    try {
+      await axios.post("/api/newsletter/subscribe", { email });
+      setState("done"); setMsg("You're on the list! We'll be in touch.");
+      setEmail("");
+    } catch (e) {
+      setState("error");
+      setMsg(e?.response?.data?.detail || "Something went wrong. Try again.");
+    }
+  };
+
+  return (
+    <div className="max-w-7xl mx-auto mt-12 pt-10 border-t border-white/10">
+      <div className="grid gap-6 md:grid-cols-2 items-center">
+        <div>
+          <p className="text-[10px] uppercase tracking-[0.32em] font-bold text-neon-lime mb-3">Stay in the Loop</p>
+          <h3 className="font-display font-black text-2xl sm:text-3xl tracking-tight text-white">
+            Join our newsletter
+          </h3>
+          <p className="mt-2 text-sm text-white/55 max-w-md">
+            Event tips, seasonal offers and first dibs on new packages — straight to your inbox.
+          </p>
+        </div>
+        <div>
+          {state === "done" ? (
+            <div className="flex items-center gap-2 rounded-xl border border-neon-lime/40 bg-neon-lime/5 px-4 py-4 text-neon-lime font-semibold">
+              <Check size={18} /> {msg}
+            </div>
+          ) : (
+            <>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <div className="relative flex-1">
+                  <Mail size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40" />
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && submit()}
+                    placeholder="you@email.com"
+                    className="w-full bg-white/[0.04] border border-white/12 rounded-xl pl-11 pr-4 py-3.5 text-sm text-white outline-none focus:border-neon-cyan"
+                  />
+                </div>
+                <button
+                  onClick={submit}
+                  disabled={state === "loading"}
+                  className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-neon-cyan text-black text-sm font-bold hover:scale-[1.03] active:scale-95 transition-transform disabled:opacity-50"
+                >
+                  {state === "loading" ? <><Loader2 size={16} className="animate-spin" /> Joining</> : "Subscribe"}
+                </button>
+              </div>
+              {state === "error" && <p className="mt-2 text-xs text-neon-pink">{msg}</p>}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function Footer() {
   return (
@@ -51,6 +119,8 @@ export default function Footer() {
           style={{ filter: "grayscale(1) brightness(3)" }}
         />
       </div>
+
+      <NewsletterSignup />
 
       <div className="max-w-7xl mx-auto mt-10 pt-6 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-white/40">
         <p>© {new Date().getFullYear()} Montage Events. All rights reserved.</p>
