@@ -22,6 +22,8 @@ export async function onRequest(context) {
 
   try {
     if (method === "POST" && head === "subscribe") return handleSubscribe(request, env);
+    if (method === "POST" && head === "lead") return handleLead(request, env);
+    if (method === "GET" && head === "admin" && sub === "leads") return handleLeadsList(request, env);
     if (method === "GET" && head === "admin" && sub === "list") return handleList(request, env);
     if (method === "POST" && head === "admin" && sub === "send") return handleSend(request, env);
     if (method === "POST" && head === "admin" && sub === "preview") return handlePreview(request, env);
@@ -49,6 +51,52 @@ async function handleSubscribe(request, env) {
     return json({ detail: "Could not subscribe right now" }, 500);
   }
   return json({ ok: true, message: "You're subscribed!" });
+}
+
+
+// ─── Lead capture (name + phone + email + consent) ──────────
+async function handleLead(request, env) {
+  let body;
+  try { body = await request.json(); } catch { return json({ detail: "Invalid request" }, 400); }
+  const name = String(body.name || "").trim();
+  const email = String(body.email || "").trim().toLowerCase();
+  const phone = String(body.phone || "").trim();
+  const consent = !!body.consent;
+  const source = String(body.source || "website").trim();
+
+  if (!name) return json({ detail: "Please enter your name" }, 400);
+  if (!phone || phone.replace(/[^0-9]/g, "").length < 8) return json({ detail: "Please enter a valid phone number" }, 400);
+  if (email && !/^\S+@\S+\.\S+$/.test(email)) return json({ detail: "Please enter a valid email" }, 400);
+  if (!consent) return json({ detail: "Please tick the consent box so we can contact you" }, 400);
+
+  try {
+    await env.DB.prepare(
+      `INSERT INTO leads (phone, name, email, consent, source, status, created_at)
+       VALUES (?, ?, ?, 1, ?, 'new', ?)
+       ON CONFLICT(phone) DO UPDATE SET name=excluded.name, email=excluded.email, consent=1, source=excluded.source`
+    ).bind(phone, name, email, source, new Date().toISOString()).run();
+
+    // if they also gave an email, add them to the newsletter list too
+    if (email) {
+      await env.DB.prepare(
+        `INSERT INTO newsletter_subscribers (email, name, status, created_at)
+         VALUES (?, ?, 'active', ?)
+         ON CONFLICT(email) DO UPDATE SET status='active', name=excluded.name`
+      ).bind(email, name, new Date().toISOString()).run();
+    }
+  } catch (e) {
+    return json({ detail: "Could not save right now. Please try again." }, 500);
+  }
+  return json({ ok: true, message: "Thank you! We'll be in touch soon." });
+}
+
+// ─── Admin: view leads (view-only, no export endpoint) ──────
+async function handleLeadsList(request, env) {
+  if (!checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
+  const { results } = await env.DB.prepare(
+    `SELECT phone, name, email, source, status, created_at FROM leads ORDER BY created_at DESC`
+  ).all();
+  return json({ leads: results || [], count: (results || []).length });
 }
 
 // ─── Admin: list subscribers ────────────────────────────────
