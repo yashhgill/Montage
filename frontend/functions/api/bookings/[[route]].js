@@ -20,7 +20,11 @@ import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 //   GMAIL_SENDER           -> jojo@montageevents.my
 //   EVENT_TIMEZONE         -> Asia/Kuala_Lumpur
 
-const DEPOSIT_RM = 500;
+const DEFAULT_DEPOSIT_RM = 500;
+function depositRm(env) {
+  const v = parseInt(env && env.DEPOSIT_RM, 10);
+  return Number.isFinite(v) && v > 0 ? v : DEFAULT_DEPOSIT_RM;
+}
 const TOYYIBPAY_BASE = "https://toyyibpay.com";
 const TIME_SLOTS = [
   "Morning (10am - 2pm)",
@@ -57,7 +61,7 @@ export async function onRequest(context) {
 // ─── Handlers ───────────────────────────────────────────────
 function handleConfig(env) {
   return json({
-    deposit_rm: DEPOSIT_RM,
+    deposit_rm: depositRm(env),
     time_slots: TIME_SLOTS,
     payment_ready: !!(env.TOYYIBPAY_SECRET_KEY && env.TOYYIBPAY_CATEGORY_CODE),
   });
@@ -115,7 +119,7 @@ async function handleCreate(request, env) {
     billDescription: `${b.package_name} deposit (${reference})`.slice(0, 100),
     billPriceSetting: "1",
     billPayorInfo: "1",
-    billAmount: String(DEPOSIT_RM * 100),
+    billAmount: String(depositRm(env) * 100),
     billReturnUrl: `${siteUrl}/bookings/success?ref=${reference}`,
     billCallbackUrl: `${siteUrl}/api/bookings/callback`,
     billExternalReferenceNo: reference,
@@ -143,7 +147,7 @@ async function handleCreate(request, env) {
   ).bind(
     reference, "pending", b.heard_from || "", b.heard_from_detail || "", b.is_complimentary ? 1 : 0,
     b.package_id, b.package_name || "", b.package_price || "", b.venue, b.event_date, b.time_slot,
-    b.pax || "", b.notes || "", b.name, b.email, b.phone, billCode, DEPOSIT_RM,
+    b.pax || "", b.notes || "", b.name, b.email, b.phone, billCode, depositRm(env),
     "", 0, new Date().toISOString(), ""
   ).run();
 
