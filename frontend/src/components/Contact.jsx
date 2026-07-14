@@ -4,28 +4,38 @@ import { toast } from "sonner";
 import { Phone, Mail, MapPin, Instagram } from "lucide-react";
 import { PHONE_DISPLAY, EMAIL, ADDRESS, INSTAGRAM, INSTAGRAM_HANDLE, OWNER, waLink, eventTypes } from "../data/content";
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
-
 export default function Contact() {
-  const [form, setForm] = useState({ name: "", email: "", phone: "", event_type: "", message: "" });
+  const [form, setForm] = useState({ name: "", email: "", phone: "", event_type: "", message: "", consent: false });
   const [submitting, setSubmitting] = useState(false);
 
   const update = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
   const onSubmit = async (e) => {
     e.preventDefault();
-    if (!form.name.trim()) {
-      toast.error("Please add your name");
-      return;
-    }
-    if (!form.event_type) {
-      toast.error("Please choose an event type");
-      return;
-    }
+    if (!form.name.trim()) { toast.error("Please add your name"); return; }
+    if (form.phone.replace(/[^0-9]/g, "").length < 8) { toast.error("Please add a valid phone / WhatsApp number"); return; }
+    if (!form.event_type) { toast.error("Please choose an event type"); return; }
+    if (form.email && !/^\S+@\S+\.\S+$/.test(form.email)) { toast.error("Please enter a valid email"); return; }
+    if (!form.consent) { toast.error("Please tick the consent box so we can contact you"); return; }
 
     setSubmitting(true);
 
-    // Compose WhatsApp message
+    // 1) Save as a lead in our system (so we own the lead + can follow up)
+    try {
+      await axios.post("/api/newsletter/lead", {
+        name: form.name,
+        email: form.email,
+        phone: form.phone,
+        event_type: form.event_type,
+        message: form.message,
+        consent: form.consent,
+        source: "website_contact",
+      });
+    } catch (err) {
+      console.warn("Lead save failed", err);
+    }
+
+    // 2) Open WhatsApp with a pre-filled message (instant contact for the customer)
     const parts = [
       `Hi Montage, I'm ${form.name}.`,
       `I want to plan an event: ${form.event_type}.`,
@@ -35,17 +45,10 @@ export default function Contact() {
       "Can you share the available packages?",
     ].filter(Boolean).join(" ");
 
-    // Save to backend (non-blocking; ignore failure but log)
-    try {
-      await axios.post(`${API}/bookings`, form);
-    } catch (err) {
-      console.warn("Booking save failed", err);
-    }
-
-    toast.success("Opening WhatsApp with your message…");
+    toast.success("Thanks! Opening WhatsApp with your message…");
     window.open(waLink(parts), "_blank", "noopener");
     setSubmitting(false);
-    setForm({ name: "", email: "", phone: "", event_type: "", message: "" });
+    setForm({ name: "", email: "", phone: "", event_type: "", message: "", consent: false });
   };
 
   return (
@@ -65,77 +68,38 @@ export default function Contact() {
               Get in <span className="text-neon-gradient">touch.</span>
             </h2>
             <div className="mt-5 h-1 w-24 rounded-full bg-gradient-to-r from-neon-pink via-neon-yellow to-neon-cyan" />
+            <p className="mt-6 text-sm text-white/55 max-w-md">
+              Tell us about your event — we'll save your details and reach out with ideas, packages and offers. Submitting also opens WhatsApp so you can message us right away.
+            </p>
 
             <div className="mt-9 space-y-5">
-              <ContactRow
-                icon={<Phone size={20} />}
-                label="Phone / WhatsApp"
-                value={`${PHONE_DISPLAY} (${OWNER})`}
-                href={waLink("Hi Montage")}
-                testId="contact-phone"
-              />
-              <ContactRow
-                icon={<Mail size={20} />}
-                label="Email"
-                value={EMAIL}
-                href={`mailto:${EMAIL}`}
-                testId="contact-email"
-              />
-              <ContactRow
-                icon={<MapPin size={20} />}
-                label="Location"
-                value={ADDRESS}
-                testId="contact-location"
-              />
-              <ContactRow
-                icon={<Instagram size={20} />}
-                label="Instagram"
-                value={INSTAGRAM_HANDLE}
-                href={INSTAGRAM}
-                testId="contact-instagram"
-              />
+              <ContactRow icon={<Phone size={20} />} label="Phone / WhatsApp" value={`${PHONE_DISPLAY} (${OWNER})`} href={waLink("Hi Montage")} testId="contact-phone" />
+              <ContactRow icon={<Mail size={20} />} label="Email" value={EMAIL} href={`mailto:${EMAIL}`} testId="contact-email" />
+              <ContactRow icon={<MapPin size={20} />} label="Location" value={ADDRESS} testId="contact-location" />
+              <ContactRow icon={<Instagram size={20} />} label="Instagram" value={INSTAGRAM_HANDLE} href={INSTAGRAM} testId="contact-instagram" />
             </div>
           </div>
 
           <form onSubmit={onSubmit} className="grid gap-4" data-testid="booking-form">
             <Field label="Your name">
-              <input
-                value={form.name}
-                onChange={update("name")}
-                required
-                placeholder="Aiman"
+              <input value={form.name} onChange={update("name")} required placeholder="Aiman"
                 className="w-full px-4 py-3.5 rounded-xl bg-white/[0.04] border border-white/10 text-white placeholder:text-white/35 focus:border-neon-cyan focus:outline-none focus:ring-2 focus:ring-neon-cyan/40 transition-all"
-                data-testid="form-name"
-              />
-            </Field>
-            <Field label="Email address">
-              <input
-                value={form.email}
-                onChange={update("email")}
-                type="email"
-                placeholder="you@email.com"
-                className="w-full px-4 py-3.5 rounded-xl bg-white/[0.04] border border-white/10 text-white placeholder:text-white/35 focus:border-neon-cyan focus:outline-none focus:ring-2 focus:ring-neon-cyan/40 transition-all"
-                data-testid="form-email"
-              />
+                data-testid="form-name" />
             </Field>
             <Field label="Phone / WhatsApp">
-              <input
-                value={form.phone}
-                onChange={update("phone")}
-                type="tel"
-                placeholder="+60 12-345 6789"
+              <input value={form.phone} onChange={update("phone")} type="tel" required placeholder="+60 12-345 6789"
                 className="w-full px-4 py-3.5 rounded-xl bg-white/[0.04] border border-white/10 text-white placeholder:text-white/35 focus:border-neon-cyan focus:outline-none focus:ring-2 focus:ring-neon-cyan/40 transition-all"
-                data-testid="form-phone"
-              />
+                data-testid="form-phone" />
+            </Field>
+            <Field label="Email address (optional)">
+              <input value={form.email} onChange={update("email")} type="email" placeholder="you@email.com"
+                className="w-full px-4 py-3.5 rounded-xl bg-white/[0.04] border border-white/10 text-white placeholder:text-white/35 focus:border-neon-cyan focus:outline-none focus:ring-2 focus:ring-neon-cyan/40 transition-all"
+                data-testid="form-email" />
             </Field>
             <Field label="Type of event">
-              <select
-                value={form.event_type}
-                onChange={update("event_type")}
-                required
+              <select value={form.event_type} onChange={update("event_type")} required
                 className="w-full px-4 py-3.5 rounded-xl bg-white/[0.04] border border-white/10 text-white focus:border-neon-cyan focus:outline-none focus:ring-2 focus:ring-neon-cyan/40 transition-all"
-                data-testid="form-event-type"
-              >
+                data-testid="form-event-type">
                 <option value="" className="bg-[#0A0A14]">Choose event type</option>
                 {eventTypes.map((t) => (
                   <option key={t} value={t} className="bg-[#0A0A14]">{t}</option>
@@ -143,22 +107,21 @@ export default function Contact() {
               </select>
             </Field>
             <Field label="Tell us about your event">
-              <textarea
-                value={form.message}
-                onChange={update("message")}
-                rows={5}
+              <textarea value={form.message} onChange={update("message")} rows={4}
                 placeholder="Date, venue, expected guests, package needed..."
-                className="w-full px-4 py-3.5 rounded-xl bg-white/[0.04] border border-white/10 text-white placeholder:text-white/35 focus:border-neon-cyan focus:outline-none focus:ring-2 focus:ring-neon-cyan/40 transition-all resize-y min-h-[120px]"
-                data-testid="form-message"
-              />
+                className="w-full px-4 py-3.5 rounded-xl bg-white/[0.04] border border-white/10 text-white placeholder:text-white/35 focus:border-neon-cyan focus:outline-none focus:ring-2 focus:ring-neon-cyan/40 transition-all resize-y min-h-[110px]"
+                data-testid="form-message" />
             </Field>
-            <button
-              type="submit"
-              disabled={submitting}
-              data-testid="form-submit"
-              className="mt-2 inline-flex items-center justify-center gap-2 px-6 py-4 rounded-full bg-neon-cyan text-black font-bold tracking-wide neon-glow-cyan hover:scale-[1.02] active:scale-[0.98] transition-transform disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {submitting ? "Sending…" : "Send to WhatsApp"}
+
+            <label className="flex items-start gap-2.5 text-xs text-white/55 cursor-pointer select-none">
+              <input type="checkbox" checked={form.consent} onChange={(e) => setForm((f) => ({ ...f, consent: e.target.checked }))}
+                className="mt-0.5 accent-neon-cyan w-4 h-4 shrink-0" data-testid="form-consent" />
+              <span>I agree that Montage Events may contact me by WhatsApp, phone or email about their services.</span>
+            </label>
+
+            <button type="submit" disabled={submitting} data-testid="form-submit"
+              className="mt-1 inline-flex items-center justify-center gap-2 px-6 py-4 rounded-full bg-neon-cyan text-black font-bold tracking-wide neon-glow-cyan hover:scale-[1.02] active:scale-[0.98] transition-transform disabled:opacity-60 disabled:cursor-not-allowed">
+              {submitting ? "Sending…" : "Send & message us on WhatsApp"}
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
             </button>
           </form>
@@ -189,13 +152,8 @@ function ContactRow({ icon, label, value, href, testId }) {
       </div>
     </div>
   );
-
   if (href) {
-    return (
-      <a href={href} target="_blank" rel="noopener noreferrer" data-testid={testId}>
-        {inner}
-      </a>
-    );
+    return <a href={href} target="_blank" rel="noopener noreferrer" data-testid={testId}>{inner}</a>;
   }
   return <div data-testid={testId}>{inner}</div>;
 }
