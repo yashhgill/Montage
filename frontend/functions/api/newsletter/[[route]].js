@@ -63,6 +63,8 @@ async function handleLead(request, env) {
   const phone = String(body.phone || "").trim();
   const consent = !!body.consent;
   const source = String(body.source || "website").trim();
+  const eventType = String(body.event_type || "").trim();
+  const message = String(body.message || "").trim();
 
   if (!name) return json({ detail: "Please enter your name" }, 400);
   if (!phone || phone.replace(/[^0-9]/g, "").length < 8) return json({ detail: "Please enter a valid phone number" }, 400);
@@ -71,10 +73,11 @@ async function handleLead(request, env) {
 
   try {
     await env.DB.prepare(
-      `INSERT INTO leads (phone, name, email, consent, source, status, created_at)
-       VALUES (?, ?, ?, 1, ?, 'new', ?)
-       ON CONFLICT(phone) DO UPDATE SET name=excluded.name, email=excluded.email, consent=1, source=excluded.source`
-    ).bind(phone, name, email, source, new Date().toISOString()).run();
+      `INSERT INTO leads (phone, name, email, consent, source, event_type, message, status, created_at)
+       VALUES (?, ?, ?, 1, ?, ?, ?, 'new', ?)
+       ON CONFLICT(phone) DO UPDATE SET name=excluded.name, email=excluded.email, consent=1,
+         source=excluded.source, event_type=excluded.event_type, message=excluded.message`
+    ).bind(phone, name, email, source, eventType, message, new Date().toISOString()).run();
 
     // if they also gave an email, add them to the newsletter list too
     if (email) {
@@ -94,7 +97,7 @@ async function handleLead(request, env) {
 async function handleLeadsList(request, env) {
   if (!checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
   const { results } = await env.DB.prepare(
-    `SELECT phone, name, email, source, status, created_at FROM leads ORDER BY created_at DESC`
+    `SELECT phone, name, email, source, event_type, message, status, created_at FROM leads ORDER BY created_at DESC`
   ).all();
   return json({ leads: results || [], count: (results || []).length });
 }
