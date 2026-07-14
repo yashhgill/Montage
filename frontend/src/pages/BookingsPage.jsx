@@ -125,7 +125,7 @@ const SERVICES = [
   {
     key: "entertainers",
     name: "Entertainers",
-    tagline: "Caricature, face painting, clowns & magic",
+    tagline: "Caricature, face painting, clowns, magic & mascots",
     fullDay: false,
     packages: [
       { id: "caricature", name: "Caricature Service", price: "RM 750", pax: "2 hours of service", poster: `${R2}/caricature.jpg`,
@@ -138,6 +138,10 @@ const SERVICES = [
         points: ["Clown entertainment + magic show", "Unlimited balloon sculpture", "Full costume & makeup", "Perfect for all ages"] },
       { id: "stage-magic", name: "Close-up / Stage Magic Show", price: "RM 850", pax: "30\u201340 minutes", poster: `${R2}/magic-show.jpg`,
         points: ["Professional close-up magician", "Interactive & engaging", "Suitable for children & adults", "Memorable magic experience"] },
+      { id: "cosplay-mascot", name: "Professional Cosplay Mascot", price: "RM 550", pax: "2 hours", poster: `${R2}/cosplay-mascot.jpg`,
+        points: ["1 professional cosplay mascot", "1 crew to assist & manage photos", "Friendly, child-friendly mascot", "Unlimited photo opportunities"] },
+      { id: "cosplay-robot-mascot", name: "Cosplay Robot Mascot", price: "RM 950", pax: "2 hours", poster: `${R2}/cosplay-robot-mascot.jpg`,
+        points: ["1 professional robot mascot", "1 crew to assist movement & guests", "High-impact wow-factor appearance", "Great for photos & crowd attention"] },
     ],
   },
   {
