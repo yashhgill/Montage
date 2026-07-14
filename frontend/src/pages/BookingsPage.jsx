@@ -156,6 +156,17 @@ const SERVICES = [
   },
 ];
 
+const BAR_ADDONS = [
+  "Signature Cocktail Creation",
+  "Molecular Cocktail Station (smoke, bubbles, theatrics)",
+  "Mocktail Bar (family-friendly)",
+  "Champagne Welcome Service",
+  "Custom Branded Cups",
+  "LED Portable Bar",
+  "Premium Glassware Upgrade",
+  "Mobile Beer Station",
+];
+
 function fmtDate(d) {
   if (!d) return "";
   const y = d.getFullYear();
@@ -332,6 +343,17 @@ export default function BookingsPage() {
                       {g}
                     </button>
                   ))}
+                </div>
+              )}
+              {service.key === "bar" && (
+                <div className="mb-6 rounded-2xl border border-neon-yellow/25 bg-neon-yellow/[0.04] p-5">
+                  <p className="text-[11px] uppercase tracking-[0.25em] font-bold text-neon-yellow mb-2">Premium Add-ons (on request)</p>
+                  <p className="text-xs text-white/55 mb-3">Available with any bar package — ask us to tailor your experience. Pricing adjusted based on your selection.</p>
+                  <div className="flex flex-wrap gap-2">
+                    {BAR_ADDONS.map((a) => (
+                      <span key={a} className="text-xs text-white/75 rounded-full border border-white/12 bg-white/[0.03] px-3 py-1.5">{a}</span>
+                    ))}
+                  </div>
                 </div>
               )}
               <div className="grid sm:grid-cols-2 gap-4">
