@@ -20,6 +20,7 @@ export async function onRequest(context) {
     if (method === "POST" && head === "claim") return handleClaim(request, env);
     if (method === "GET" && head === "admin" && sub === "list") return handleList(request, env);
     if (method === "POST" && head === "admin" && sub === "redeem") return handleRedeem(request, env);
+    if (method === "GET" && head === "admin" && sub === "leaderboard") return handleLeaderboard(request, env);
     return json({ detail: "Not found" }, 404);
   } catch (err) {
     return json({ detail: err.message || "Server error" }, 500);
@@ -32,11 +33,23 @@ function checkAdmin(request, env) {
   return !!expected && key === expected;
 }
 
-// score -> discount %, server is the authority (never trusts the client blindly)
+// The "unbeaten record" shown on the kiosk screen. Realistically far above what
+// normal play can reach, but genuinely checkable \u2014 not a bluff.
+const FAKE_HIGH_SCORE = 9787;
+const RECORD_BREAK_DISCOUNT = 20;
+
+// score -> discount %, server is the authority (never trusts the client blindly).
+// Tiers are deliberately steep so 10% is a real stretch goal, not a given.
 function discountFor(score) {
-  const s = Math.max(0, Math.min(Number(score) || 0, 2000));
-  const pct = Math.floor(s / 50) + 1;
-  return Math.max(1, Math.min(pct, 10));
+  const s = Math.max(0, Math.min(Number(score) || 0, 50000));
+  if (s > FAKE_HIGH_SCORE) return RECORD_BREAK_DISCOUNT;
+  const tiers = [
+    [0, 1], [120, 2], [260, 3], [420, 4], [600, 5],
+    [820, 6], [1080, 7], [1380, 8], [1720, 9], [2100, 10],
+  ];
+  let pct = 1;
+  for (const [threshold, p] of tiers) if (s >= threshold) pct = p;
+  return pct;
 }
 
 function makeCode() {
@@ -121,6 +134,18 @@ async function handleList(request, env) {
      FROM expo_prizes ORDER BY created_at DESC`
   ).all();
   return json({ prizes: results || [], count: (results || []).length });
+}
+
+async function handleLeaderboard(request, env) {
+  if (!checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
+  const { results } = await env.DB.prepare(
+    `SELECT name, score, discount_pct, created_at FROM expo_prizes ORDER BY score DESC LIMIT 10`
+  ).all();
+  return json({
+    leaderboard: results || [],
+    record_score: FAKE_HIGH_SCORE,
+    record_discount: RECORD_BREAK_DISCOUNT,
+  });
 }
 
 async function handleRedeem(request, env) {
