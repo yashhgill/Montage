@@ -53,6 +53,28 @@ function useSounds() {
     osc.connect(g); g.connect(ctx.destination);
     osc.start(t0); osc.stop(t0 + dur + 0.02);
   };
+  const musicIvRef = useRef(null);
+  const musicStepRef = useRef(0);
+
+  const startMusic = () => {
+    if (musicIvRef.current) return;
+    ensure();
+    const notes = [329.6, 392.0, 440.0, 523.3, 440.0, 392.0, 329.6, 293.7]; // E-major-ish island run
+    const bass = [82.4, 82.4, 110.0, 110.0];
+    musicStepRef.current = 0;
+    const tick = () => {
+      const i = musicStepRef.current;
+      tone(notes[i % notes.length], 0.5, "triangle", 0.045);
+      if (i % 2 === 0) tone(bass[(i / 2) % bass.length], 0.6, "sine", 0.05);
+      musicStepRef.current += 1;
+    };
+    tick();
+    musicIvRef.current = setInterval(tick, 430);
+  };
+  const stopMusic = () => {
+    if (musicIvRef.current) { clearInterval(musicIvRef.current); musicIvRef.current = null; }
+  };
+
   return {
     unlock: () => { const c = ensure(); if (c && c.state === "suspended") c.resume(); },
     good: (comboLevel = 0) => tone(520 + Math.min(comboLevel, 20) * 14, 0.11, "triangle", 0.16),
@@ -61,6 +83,7 @@ function useSounds() {
     countdown: () => tone(440, 0.15, "square", 0.2),
     go: () => { tone(660, 0.12, "square", 0.22); tone(880, 0.22, "square", 0.22, 0.12); },
     win: () => { [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.22, "triangle", 0.18, i * 0.09)); },
+    startMusic, stopMusic,
   };
 }
 
@@ -123,6 +146,7 @@ export default function AdminExpoGamePage() {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     if (timerRef.current) clearInterval(timerRef.current);
     rafRef.current = null; timerRef.current = null;
+    sounds.stopMusic();
   }, []);
   useEffect(() => () => stopLoops(), [stopLoops]);
 
@@ -131,6 +155,7 @@ export default function AdminExpoGamePage() {
 
   const endGame = useCallback(async () => {
     stopLoops();
+    sounds.stopMusic();
     setItems([]); itemsRef.current = [];
     setClaiming(true); setScreen("result");
     try {
@@ -192,15 +217,18 @@ export default function AdminExpoGamePage() {
     }, 1000);
   };
 
-  const startCountdown = () => {
+  const goToRules = () => {
     if (!form.name.trim()) { setFormError("Please enter your name."); return; }
     if (form.phone.replace(/[^0-9]/g, "").length < 8) { setFormError("Please enter a valid phone number."); return; }
     if (form.email && !/^\S+@\S+\.\S+$/.test(form.email)) { setFormError("Please enter a valid email."); return; }
     if (!form.consent) { setFormError("Please tick the box so we can send your code."); return; }
     setFormError("");
     sounds.unlock();
-
     goodSetRef.current = new Set([...recipe.need.map((i) => i.e), WILDCARD.e]);
+    setScreen("rules");
+  };
+
+  const beginCountdown = () => {
     setScreen("countdown");
     setCountNum(3);
     sounds.countdown();
@@ -216,6 +244,7 @@ export default function AdminExpoGamePage() {
           scoreRef.current = 0; comboRef.current = 0; comboMilestoneRef.current = 0;
           itemsRef.current = []; setItems([]);
           setScreen("game");
+          sounds.startMusic();
           runGameLoop();
         }, 500);
       }
@@ -410,12 +439,52 @@ export default function AdminExpoGamePage() {
                 <span>I agree that Montage Events may contact me by WhatsApp, phone or email about their services.</span>
               </label>
               {formError && <p className="text-sm text-neon-pink">{formError}</p>}
-              <button onClick={startCountdown}
+              <button onClick={goToRules}
                 className="w-full py-6 rounded-2xl bg-neon-lime text-black font-black text-2xl neon-glow-lime hover:scale-[1.02] transition-transform">
-                START GAME
+                CONTINUE
               </button>
               <button onClick={reset} className="w-full text-sm text-white/35 hover:text-white/70">Cancel</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {screen === "rules" && (
+        <div className="relative z-10 min-h-screen grid place-items-center px-6 py-14 text-center">
+          <div className="w-full max-w-2xl">
+            <p className="text-xs sm:text-sm uppercase tracking-[0.4em] font-bold text-neon-pink mb-3">Read this before you play</p>
+            <h2 className="font-display font-black text-4xl sm:text-6xl tracking-tighter leading-[0.95]">
+              ONLY CATCH<br /><span className="text-neon-lime">THESE {recipe?.need.length + 1} ITEMS</span>
+            </h2>
+            <p className="mt-3 text-white/55 text-sm sm:text-base">for your {recipe?.glass} {recipe?.name}</p>
+
+            <div className="mt-8 flex flex-wrap justify-center gap-4">
+              {recipe?.need.map((i) => (
+                <div key={i.e} className="flex flex-col items-center gap-2 rounded-2xl border-2 border-neon-lime/50 bg-neon-lime/10 px-6 py-5">
+                  <span style={{ fontSize: "56px" }}>{i.e}</span>
+                  <span className="text-xs sm:text-sm font-bold text-white/85">{i.n}</span>
+                </div>
+              ))}
+              <div className="flex flex-col items-center gap-2 rounded-2xl border-2 border-amber-300/50 bg-amber-300/10 px-6 py-5">
+                <span style={{ fontSize: "56px" }}>{WILDCARD.e}</span>
+                <span className="text-xs sm:text-sm font-bold text-white/85">Bonus (always OK)</span>
+              </div>
+            </div>
+
+            <div className="mt-8 rounded-2xl border-2 border-neon-pink/40 bg-neon-pink/[0.06] px-6 py-5">
+              <p className="text-sm sm:text-base font-black text-neon-pink uppercase tracking-wide mb-3">🚫 Tapping ANYTHING else costs you points</p>
+              <div className="flex flex-wrap justify-center gap-3 opacity-70">
+                {BAD.slice(0, 6).map((b) => (
+                  <span key={b.e} style={{ fontSize: "34px" }} className="grayscale">{b.e}</span>
+                ))}
+              </div>
+              <p className="mt-2 text-xs text-white/40">...and any ingredient that isn't in your recipe above</p>
+            </div>
+
+            <button onClick={beginCountdown}
+              className="mt-10 w-full sm:w-auto px-14 py-6 rounded-full bg-neon-cyan text-black font-black text-2xl neon-glow-cyan hover:scale-[1.03] transition-transform">
+              I'M READY — START COUNTDOWN
+            </button>
           </div>
         </div>
       )}
