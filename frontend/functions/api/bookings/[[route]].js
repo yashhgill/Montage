@@ -26,6 +26,21 @@ function depositRm(env) {
   return Number.isFinite(v) && v > 0 ? v : DEFAULT_DEPOSIT_RM;
 }
 const TOYYIBPAY_BASE = "https://toyyibpay.com";
+
+// Expo discount codes apply to the DEPOSIT only (e.g. 10% off RM500 = RM50 off).
+async function lookupPromo(env, raw) {
+  const code = String(raw || "").trim().toUpperCase();
+  if (!code) return null;
+  let rec;
+  try {
+    rec = await env.DB.prepare(`SELECT * FROM expo_prizes WHERE code=?`).bind(code).first();
+  } catch (e) { return { error: "Could not check that code" }; }
+  if (!rec) return { error: "Code not found" };
+  if (rec.status === "redeemed") return { error: "This code has already been used" };
+  const today = new Date().toISOString().slice(0, 10);
+  if (rec.valid_until && rec.valid_until < today) return { error: "This code has expired" };
+  return { code: rec.code, discount_pct: rec.discount_pct };
+}
 const TIME_SLOTS = [
   "Morning (10am - 2pm)",
   "Afternoon (2pm - 6pm)",
@@ -51,6 +66,7 @@ export async function onRequest(context) {
     if (method === "POST" && head === "create") return handleCreate(request, env);
     if (method === "POST" && head === "callback") return handleCallback(request, env);
     if (method === "GET" && head === "status") return handleStatus(env, route[1]);
+    if (method === "GET" && head === "promo") return handlePromo(env, route[1]);
     if (method === "GET" && head === "test-fire") return handleTestFire(request, env);
     return json({ detail: "Not found" }, 404);
   } catch (err) {
@@ -111,6 +127,17 @@ async function handleCreate(request, env) {
     Math.random().toString(36).slice(2, 7).toUpperCase();
   const siteUrl = env.SITE_URL || "https://montageevents.my";
 
+  // apply an expo discount code to the deposit (server decides, never the client)
+  const baseDeposit = depositRm(env);
+  let deposit = baseDeposit, promoCode = "", promoPct = 0, promoDiscount = 0;
+  if (b.promo_code) {
+    const p = await lookupPromo(env, b.promo_code);
+    if (!p || p.error) return json({ detail: (p && p.error) || "Invalid code" }, 400);
+    promoCode = p.code; promoPct = p.discount_pct;
+    promoDiscount = Math.round((baseDeposit * promoPct) / 100);
+    deposit = Math.max(1, baseDeposit - promoDiscount);
+  }
+
   // create ToyyibPay bill
   const billBody = new URLSearchParams({
     userSecretKey: env.TOYYIBPAY_SECRET_KEY,
@@ -119,7 +146,7 @@ async function handleCreate(request, env) {
     billDescription: `${b.package_name} deposit (${reference})`.slice(0, 100),
     billPriceSetting: "1",
     billPayorInfo: "1",
-    billAmount: String(depositRm(env) * 100),
+    billAmount: String(deposit * 100),
     billReturnUrl: `${siteUrl}/bookings/success?ref=${reference}`,
     billCallbackUrl: `${siteUrl}/api/bookings/callback`,
     billExternalReferenceNo: reference,
@@ -142,13 +169,13 @@ async function handleCreate(request, env) {
     `INSERT INTO event_bookings
      (reference,status,heard_from,heard_from_detail,is_complimentary,package_id,package_name,
       package_price,venue,event_date,time_slot,pax,notes,name,email,phone,bill_code,deposit_rm,
-      calendar_event_id,email_sent,created_at,paid_at)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+      calendar_event_id,email_sent,created_at,paid_at,promo_code,promo_pct,promo_discount_rm)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
   ).bind(
     reference, "pending", b.heard_from || "", b.heard_from_detail || "", b.is_complimentary ? 1 : 0,
     b.package_id, b.package_name || "", b.package_price || "", b.venue, b.event_date, b.time_slot,
-    b.pax || "", b.notes || "", b.name, b.email, b.phone, billCode, depositRm(env),
-    "", 0, new Date().toISOString(), ""
+    b.pax || "", b.notes || "", b.name, b.email, b.phone, billCode, deposit,
+    "", 0, new Date().toISOString(), "", promoCode, promoPct, promoDiscount
   ).run();
 
   return json({ reference, payment_url: `${TOYYIBPAY_BASE}/${billCode}` });
@@ -174,11 +201,31 @@ async function handleCallback(request, env) {
     await env.DB.prepare(
       `UPDATE event_bookings SET status='paid', paid_at=?, calendar_event_id=?, email_sent=? WHERE reference=?`
     ).bind(new Date().toISOString(), calId, emailed, rec.reference).run();
+    // burn the expo discount code so it can't be reused
+    if (rec.promo_code) {
+      try {
+        await env.DB.prepare(
+          `UPDATE expo_prizes SET status='redeemed', redeemed_at=? WHERE code=? AND status!='redeemed'`
+        ).bind(new Date().toISOString(), rec.promo_code).run();
+      } catch (e) { /* non-fatal */ }
+    }
   } else if (statusId === "3") {
     await env.DB.prepare(`UPDATE event_bookings SET status='failed' WHERE reference=?`)
       .bind(rec.reference).run();
   }
   return json({ ok: true });
+}
+
+async function handlePromo(env, raw) {
+  const base = depositRm(env);
+  const p = await lookupPromo(env, raw);
+  if (!p) return json({ detail: "Missing code" }, 400);
+  if (p.error) return json({ valid: false, detail: p.error }, 200);
+  const discount = Math.round((base * p.discount_pct) / 100);
+  return json({
+    valid: true, code: p.code, discount_pct: p.discount_pct,
+    discount_rm: discount, deposit_rm: Math.max(1, base - discount), base_deposit_rm: base,
+  });
 }
 
 async function handleStatus(env, ref) {
@@ -389,7 +436,8 @@ async function buildInvoicePdf(env, rec) {
 
   const total = parsePrice(rec.package_price);
   const deposit = rec.deposit_rm || 500;
-  const balance = Math.max(total - deposit, 0);
+  const promoDiscount = rec.promo_discount_rm || 0;
+  const balance = Math.max(total - promoDiscount - deposit, 0);
 
   const row = (desc, amount, isBold) => {
     const f = isBold ? bold : font;
@@ -399,6 +447,14 @@ async function buildInvoicePdf(env, rec) {
   };
   row(rec.package_name + " (full package)", total);
   page.drawLine({ start: { x: M, y: y + 6 }, end: { x: width - M, y: y + 6 }, thickness: 0.5, color: rgb(0.85,0.85,0.85) });
+  if (promoDiscount > 0) {
+    page.drawText("Expo discount (" + rec.promo_pct + "% off deposit) \u00b7 " + rec.promo_code,
+      { x: M + 10, y, size: 10, font, color: black });
+    page.drawText("- RM " + promoDiscount.toLocaleString("en-MY") + ".00",
+      { x: width - M - 100, y, size: 10, font, color: rgb(0.1, 0.5, 0.2) });
+    y -= 20;
+    page.drawLine({ start: { x: M, y: y + 6 }, end: { x: width - M, y: y + 6 }, thickness: 0.5, color: rgb(0.85,0.85,0.85) });
+  }
   row("Deposit paid (this invoice)", deposit);
   page.drawLine({ start: { x: M, y: y + 6 }, end: { x: width - M, y: y + 6 }, thickness: 0.5, color: rgb(0.85,0.85,0.85) });
 
@@ -421,6 +477,9 @@ async function buildInvoicePdf(env, rec) {
     "\u2022 Remaining balance after deposit: RM" + balance.toLocaleString("en-MY") + ".00.",
     "\u2022 This invoice confirms your deposit and secures your event date and time slot.",
   ];
+  if (promoDiscount > 0) {
+    terms.splice(1, 0, "\u2022 Expo code " + rec.promo_code + " applied: RM" + promoDiscount + " off your deposit.");
+  }
   for (const t of terms) { page.drawText(t, { x: M, y, size: 9, font, color: grey }); y -= 13; }
 
   // Footer
@@ -454,7 +513,8 @@ async function sendEmail(env, rec) {
 <p style="margin:0 0 10px"><b>Time:</b> ${rec.time_slot}</p>
 <p style="margin:0 0 10px"><b>Venue:</b> ${rec.venue}</p>
 <p style="margin:0 0 10px"><b>Pax:</b> ${rec.pax}</p>
-<p style="margin:0"><b>Deposit paid:</b> RM ${rec.deposit_rm}.00</p>
+<p style="margin:0 0 10px"><b>Deposit paid:</b> RM ${rec.deposit_rm}.00</p>
+${rec.promo_discount_rm ? `<p style="margin:0;color:#B8FF2D"><b>Expo code ${rec.promo_code}:</b> RM${rec.promo_discount_rm} off your deposit</p>` : ""}
 </div>
 <div style="background:#2a1500;border:1px solid #FF6A00;border-radius:10px;padding:16px;font-size:13px;color:#ffcfa0">
 <p style="margin:0 0 6px"><b>Important terms</b></p>
