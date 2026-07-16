@@ -181,6 +181,9 @@ export default function BookingsPage() {
   const [taken, setTaken] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [promo, setPromo] = useState("");
+  const [promoState, setPromoState] = useState("idle"); // idle | checking | ok | bad
+  const [promoInfo, setPromoInfo] = useState(null);
 
   const [serviceKey, setServiceKey] = useState("");
   const [subgroup, setSubgroup] = useState("");
@@ -235,10 +238,30 @@ export default function BookingsPage() {
     set({ service: s.name, full_day: !!s.fullDay, package_id: "", package_name: "", package_price: "", time_slot: "" });
   };
 
+  const checkPromo = async () => {
+    const code = promo.trim();
+    if (!code) return;
+    setPromoState("checking"); setPromoInfo(null);
+    try {
+      const { data } = await axios.get(`${API}/bookings/promo/${encodeURIComponent(code)}`);
+      if (data.valid) { setPromoInfo(data); setPromoState("ok"); }
+      else { setPromoInfo({ detail: data.detail || "Invalid code" }); setPromoState("bad"); }
+    } catch (e) {
+      setPromoInfo({ detail: e?.response?.data?.detail || "Could not check that code" });
+      setPromoState("bad");
+    }
+  };
+
+  const clearPromo = () => { setPromo(""); setPromoState("idle"); setPromoInfo(null); };
+
   const submit = async () => {
     setSubmitting(true); setError("");
     try {
-      const payload = { ...form, time_slot: form.full_day ? "Full Day" : form.time_slot };
+      const payload = {
+        ...form,
+        time_slot: form.full_day ? "Full Day" : form.time_slot,
+        promo_code: promoState === "ok" ? promoInfo.code : "",
+      };
       const { data } = await axios.post(`${API}/bookings/create`, payload);
       window.location.href = data.payment_url;
     } catch (e) {
@@ -475,11 +498,45 @@ export default function BookingsPage() {
                 <Row k="Email" v={form.email} />
                 <Row k="Phone" v={form.phone} />
                 {form.is_complimentary && <Row k="Perk" v="Complimentary event-guest upgrades" />}
+                {promoState === "ok" && (
+                  <div className="flex justify-between gap-4 text-neon-lime">
+                    <span>Expo code {promoInfo.code} ({promoInfo.discount_pct}% off deposit)</span>
+                    <span className="font-semibold">- RM {promoInfo.discount_rm}.00</span>
+                  </div>
+                )}
                 <div className="border-t border-white/10 pt-3 flex justify-between items-center">
                   <span className="text-white/60">Deposit due now</span>
-                  <span className="font-display font-black text-2xl text-neon-gradient">RM {config.deposit_rm}.00</span>
+                  <span className="font-display font-black text-2xl text-neon-gradient">
+                    RM {promoState === "ok" ? promoInfo.deposit_rm : config.deposit_rm}.00
+                  </span>
                 </div>
               </div>
+              <div className="mt-5 rounded-2xl border border-white/12 bg-white/[0.03] p-5">
+                <p className="text-[10px] uppercase tracking-[0.25em] font-bold text-neon-lime mb-3">Got an expo code?</p>
+                {promoState === "ok" ? (
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-semibold text-neon-lime">
+                      {promoInfo.code} applied \u2014 RM{promoInfo.discount_rm} off your deposit 🎉
+                    </p>
+                    <button onClick={clearPromo} className="text-xs text-white/40 hover:text-white underline">Remove</button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <input value={promo} onChange={(e) => { setPromo(e.target.value.toUpperCase()); setPromoState("idle"); }}
+                        onKeyDown={(e) => e.key === "Enter" && checkPromo()}
+                        placeholder="MTG-EXPO-XXXXX"
+                        className="flex-1 bg-white/[0.04] border border-white/12 rounded-xl px-4 py-3 text-sm tracking-wider outline-none focus:border-neon-cyan" />
+                      <button onClick={checkPromo} disabled={promoState === "checking" || !promo.trim()}
+                        className="px-5 py-3 rounded-xl border border-neon-lime/50 text-neon-lime text-sm font-bold hover:bg-neon-lime/10 disabled:opacity-40">
+                        {promoState === "checking" ? "Checking…" : "Apply"}
+                      </button>
+                    </div>
+                    {promoState === "bad" && <p className="mt-2 text-xs text-neon-pink">{promoInfo?.detail}</p>}
+                  </>
+                )}
+              </div>
+
               <div className="mt-5 p-4 rounded-xl border border-orange-500/30 bg-orange-500/5 text-xs text-orange-200/90 space-y-1.5">
                 <p>• The RM{config.deposit_rm} deposit is <b>non-refundable</b> if the booking is cancelled.</p>
                 <p>• The full package amount must be paid <b>at least 30 days before</b> the event date.</p>
@@ -503,7 +560,7 @@ export default function BookingsPage() {
             ) : (
               <button onClick={submit} disabled={submitting || !config.payment_ready}
                 className="inline-flex items-center gap-2 px-7 py-3 rounded-full bg-neon-lime text-black font-bold disabled:opacity-40 hover:scale-[1.04] transition-transform neon-glow-lime">
-                {submitting ? <><Loader2 size={16} className="animate-spin" /> Redirecting…</> : `Pay RM${config.deposit_rm} Deposit`}
+                {submitting ? <><Loader2 size={16} className="animate-spin" /> Redirecting…</> : `Pay RM${promoState === "ok" ? promoInfo.deposit_rm : config.deposit_rm} Deposit`}
               </button>
             )}
           </div>
