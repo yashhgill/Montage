@@ -87,7 +87,22 @@ function useSounds() {
   };
 }
 
+function useKioskViewport() {
+  useEffect(() => {
+    let meta = document.querySelector('meta[name="viewport"]');
+    const prev = meta ? meta.getAttribute("content") : null;
+    if (!meta) {
+      meta = document.createElement("meta");
+      meta.setAttribute("name", "viewport");
+      document.head.appendChild(meta);
+    }
+    meta.setAttribute("content", "width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover");
+    return () => { if (meta && prev !== null) meta.setAttribute("content", prev); };
+  }, []);
+}
+
 export default function AdminExpoGamePage() {
+  useKioskViewport();
   const [adminKey, setAdminKey] = useState("");
   const [authed, setAuthed] = useState(false);
   const [authError, setAuthError] = useState("");
@@ -317,9 +332,18 @@ export default function AdminExpoGamePage() {
     </div>
   );
 
+  const KioskStyle = () => (
+    <style>{`
+      .expo-kiosk, .expo-kiosk * { -webkit-tap-highlight-color: transparent; }
+      .expo-kiosk { overscroll-behavior: none; touch-action: manipulation; -webkit-user-select: none; user-select: none; }
+      .expo-kiosk button, .expo-kiosk input { -webkit-user-select: text; }
+    `}</style>
+  );
+
   if (!authed) {
     return (
-      <div className="relative min-h-screen bg-[#0a0618] text-white grid place-items-center px-5 overflow-hidden">
+      <div className="expo-kiosk relative min-h-[100dvh] bg-[#0a0618] text-white grid place-items-center px-5 overflow-hidden">
+        <KioskStyle />
         <Backdrop />
         <div className="relative z-10 w-full max-w-sm">
           <p className="font-display font-black text-2xl text-center mb-6">MONTAGE<span className="text-neon-cyan">.</span> <span className="text-white/40 text-base font-normal">Expo</span></p>
@@ -337,7 +361,8 @@ export default function AdminExpoGamePage() {
   }
 
   return (
-    <div className="relative min-h-screen text-white overflow-hidden select-none">
+    <div className="expo-kiosk relative min-h-[100dvh] text-white overflow-hidden select-none" style={{ touchAction: "none", overscrollBehavior: "none" }}>
+      <KioskStyle />
       <Backdrop />
 
       <div className="absolute top-0 inset-x-0 z-30 flex items-center justify-between px-5 py-3 text-xs text-white/40">
@@ -351,7 +376,7 @@ export default function AdminExpoGamePage() {
       </div>
 
       {screen === "attract" && (
-        <div className="relative z-10 w-full min-h-screen grid place-items-center px-6 text-center">
+        <div className="relative z-10 w-full min-h-[100dvh] grid place-items-center px-6 text-center">
           <div>
             <p className="text-[11px] sm:text-sm uppercase tracking-[0.4em] font-bold text-amber-300">Montage Expo Exclusive</p>
             <h1 className="mt-5 font-display font-black tracking-tighter text-5xl sm:text-7xl lg:text-8xl leading-[0.9]">
@@ -393,7 +418,7 @@ export default function AdminExpoGamePage() {
       )}
 
       {screen === "recipe" && (
-        <div className="relative z-10 min-h-screen grid place-items-center px-6 py-16">
+        <div className="relative z-10 min-h-[100dvh] grid place-items-center px-6 py-16">
           <div className="w-full max-w-3xl text-center">
             <h2 className="font-display font-black text-3xl sm:text-5xl tracking-tighter">Pick your drink</h2>
             <p className="mt-3 text-white/55 text-base sm:text-lg">You'll need to catch these exact ingredients — and avoid everything else.</p>
@@ -418,7 +443,7 @@ export default function AdminExpoGamePage() {
       )}
 
       {screen === "form" && (
-        <div className="relative z-10 min-h-screen grid place-items-center px-6 py-16">
+        <div className="relative z-10 min-h-[100dvh] grid place-items-center px-6 py-16">
           <div className="w-full max-w-lg">
             <h2 className="font-display font-black text-3xl sm:text-5xl tracking-tighter text-center">Almost there!</h2>
             <p className="mt-3 text-center text-white/55 text-base sm:text-lg">Pop in your details so we can send your {recipe?.name} discount code.</p>
@@ -450,7 +475,7 @@ export default function AdminExpoGamePage() {
       )}
 
       {screen === "rules" && (
-        <div className="relative z-10 min-h-screen grid place-items-center px-6 py-14 text-center">
+        <div className="relative z-10 min-h-[100dvh] grid place-items-center px-6 py-14 text-center">
           <div className="w-full max-w-2xl">
             <p className="text-xs sm:text-sm uppercase tracking-[0.4em] font-bold text-neon-pink mb-3">Read this before you play</p>
             <h2 className="font-display font-black text-4xl sm:text-6xl tracking-tighter leading-[0.95]">
@@ -490,7 +515,7 @@ export default function AdminExpoGamePage() {
       )}
 
       {screen === "countdown" && (
-        <div className="relative z-10 min-h-screen grid place-items-center px-6 text-center">
+        <div className="relative z-10 min-h-[100dvh] grid place-items-center px-6 text-center">
           <div>
             <p className="text-sm uppercase tracking-[0.35em] text-white/50 font-bold mb-4">
               Catch: {recipe?.need.map((i) => i.e).join(" ")} {WILDCARD.e}
@@ -503,7 +528,7 @@ export default function AdminExpoGamePage() {
       )}
 
       {screen === "game" && (
-        <div className={`relative z-10 min-h-screen overflow-hidden transition-colors duration-100 ${flash === "good" ? "bg-neon-lime/10" : flash === "bad" ? "bg-neon-pink/15" : ""}`}>
+        <div className={`relative z-10 min-h-[100dvh] overflow-hidden transition-colors duration-100 ${flash === "good" ? "bg-neon-lime/10" : flash === "bad" ? "bg-neon-pink/15" : ""}`}>
           <div className="absolute top-10 inset-x-0 z-20 flex items-center justify-between px-6 sm:px-12">
             <div>
               <p className="text-[10px] uppercase tracking-[0.3em] text-white/45 font-bold">Score</p>
@@ -547,7 +572,7 @@ export default function AdminExpoGamePage() {
       )}
 
       {screen === "result" && (
-        <div className="relative z-10 min-h-screen grid place-items-center px-6 text-center">
+        <div className="relative z-10 min-h-[100dvh] grid place-items-center px-6 text-center">
           {claiming ? (
             <div>
               <Loader2 size={56} className="animate-spin text-neon-cyan mx-auto" />
