@@ -44,9 +44,9 @@ function discountFor(score) {
   const s = Math.max(0, Math.min(Number(score) || 0, 50000));
   if (s > FAKE_HIGH_SCORE) return RECORD_BREAK_DISCOUNT;
   const tiers = [
-    [0, 1], [108, 2], [234, 3], [378, 4], [540, 5],
-    [738, 6], [972, 7], [1118, 8], [1393, 9], [1890, 10],
-  ]; // thresholds ~10% lower (easier) to match the eased client-side difficulty
+    [0, 1], [90, 2], [190, 3], [300, 4], [430, 5],
+    [580, 6], [760, 7], [960, 8], [1180, 9], [1500, 10],
+  ]; // eased further — 200 points should now land around tier 3-4, not barely tier 1
   let pct = 1;
   for (const [threshold, p] of tiers) if (s >= threshold) pct = p;
   return pct;
