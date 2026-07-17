@@ -43,10 +43,14 @@ const RECORD_BREAK_DISCOUNT = 20;
 function discountFor(score) {
   const s = Math.max(0, Math.min(Number(score) || 0, 50000));
   if (s > FAKE_HIGH_SCORE) return RECORD_BREAK_DISCOUNT;
+  // Spread wide on purpose: casual play should sit at 1-3%, a genuinely good
+  // round earns 4-7%, and 8-10% takes real, sustained skill. 20% is reserved
+  // exclusively for beating the FAKE_HIGH_SCORE record below — never awarded
+  // from this table.
   const tiers = [
-    [0, 1], [72, 2], [150, 3], [240, 4], [340, 5],
-    [460, 6], [600, 7], [760, 8], [940, 9], [1200, 10],
-  ]; // eased another 20% — 1000 points now lands around tier 8-9
+    [0, 1], [300, 2], [700, 3], [1200, 4], [1800, 5],
+    [2500, 6], [3300, 7], [4200, 8], [5200, 9], [6500, 10],
+  ];
   let pct = 1;
   for (const [threshold, p] of tiers) if (s >= threshold) pct = p;
   return pct;
