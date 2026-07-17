@@ -165,8 +165,8 @@ export default function AdminExpoGamePage() {
   }, []);
   useEffect(() => () => stopLoops(), [stopLoops]);
 
-  const speedFactor = (elapsed) => 1 + Math.min(elapsed / BASE_SECONDS, 1) * 1.15; // ~10% easier ramp
-  const spawnMs = (elapsed) => Math.max(210, 520 - elapsed * 6.5); // ~10% gentler spawn ramp
+  const speedFactor = (elapsed) => 1 + Math.min(elapsed / BASE_SECONDS, 1) * 1.05; // eased further
+  const spawnMs = (elapsed) => Math.max(230, 520 - elapsed * 6.0); // eased further
 
   const endGame = useCallback(async () => {
     stopLoops();
@@ -191,14 +191,14 @@ export default function AdminExpoGamePage() {
   const spawnOne = () => {
     const roll = Math.random();
     let pool, good;
-    if (roll < 0.08) { pool = [WILDCARD]; good = true; }
-    else if (roll < 0.55) { pool = recipe.need; good = true; }
-    else if (roll < 0.75) { pool = ALL_INGREDIENTS.filter((i) => !goodSetRef.current.has(i.e)); good = false; }
+    if (roll < 0.11) { pool = [WILDCARD]; good = true; }
+    else if (roll < 0.62) { pool = recipe.need; good = true; }
+    else if (roll < 0.80) { pool = ALL_INGREDIENTS.filter((i) => !goodSetRef.current.has(i.e)); good = false; }
     else { pool = BAD; good = false; }
     const pick = pool[Math.floor(Math.random() * pool.length)] || BAD[0];
     return {
       id: nextId++, x: 6 + Math.random() * 82, y: -8,
-      vy: 18 + Math.random() * 13, good, emoji: pick.e, name: pick.n, // ~10% slower base fall
+      vy: 16 + Math.random() * 11, good, emoji: pick.e, name: pick.n, // eased further
     };
   };
 
@@ -271,7 +271,7 @@ export default function AdminExpoGamePage() {
     setItems(itemsRef.current);
     if (item.good) {
       comboRef.current += 1;
-      const bonus = Math.floor(comboRef.current / 5) * 4;
+      const bonus = Math.floor(comboRef.current / 5) * 5;
       scoreRef.current += 10 + bonus;
       sounds.good(comboRef.current);
       setFlash("good");
@@ -284,7 +284,7 @@ export default function AdminExpoGamePage() {
       }
     } else {
       comboRef.current = 0;
-      scoreRef.current = Math.max(0, scoreRef.current - 27); // ~10% lighter penalty
+      scoreRef.current = Math.max(0, scoreRef.current - 20); // eased further, mistakes hurt less
       sounds.bad();
       setFlash("bad");
     }
