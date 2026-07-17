@@ -165,8 +165,8 @@ export default function AdminExpoGamePage() {
   }, []);
   useEffect(() => () => stopLoops(), [stopLoops]);
 
-  const speedFactor = (elapsed) => 1 + Math.min(elapsed / BASE_SECONDS, 1) * 1.05; // eased further
-  const spawnMs = (elapsed) => Math.max(230, 520 - elapsed * 6.0); // eased further
+  const speedFactor = (elapsed) => 1 + Math.min(elapsed / BASE_SECONDS, 1) * 0.84; // eased another 20%
+  const spawnMs = (elapsed) => Math.max(275, 520 - elapsed * 4.8); // eased another 20%
 
   const endGame = useCallback(async () => {
     stopLoops();
@@ -191,14 +191,14 @@ export default function AdminExpoGamePage() {
   const spawnOne = () => {
     const roll = Math.random();
     let pool, good;
-    if (roll < 0.11) { pool = [WILDCARD]; good = true; }
-    else if (roll < 0.62) { pool = recipe.need; good = true; }
-    else if (roll < 0.80) { pool = ALL_INGREDIENTS.filter((i) => !goodSetRef.current.has(i.e)); good = false; }
+    if (roll < 0.13) { pool = [WILDCARD]; good = true; }
+    else if (roll < 0.70) { pool = recipe.need; good = true; }
+    else if (roll < 0.85) { pool = ALL_INGREDIENTS.filter((i) => !goodSetRef.current.has(i.e)); good = false; }
     else { pool = BAD; good = false; }
     const pick = pool[Math.floor(Math.random() * pool.length)] || BAD[0];
     return {
       id: nextId++, x: 6 + Math.random() * 82, y: -8,
-      vy: 16 + Math.random() * 11, good, emoji: pick.e, name: pick.n, // eased further
+      vy: 13 + Math.random() * 9, good, emoji: pick.e, name: pick.n, // eased another 20%
     };
   };
 
@@ -271,7 +271,7 @@ export default function AdminExpoGamePage() {
     setItems(itemsRef.current);
     if (item.good) {
       comboRef.current += 1;
-      const bonus = Math.floor(comboRef.current / 5) * 5;
+      const bonus = Math.floor(comboRef.current / 5) * 6;
       scoreRef.current += 10 + bonus;
       sounds.good(comboRef.current);
       setFlash("good");
@@ -284,7 +284,7 @@ export default function AdminExpoGamePage() {
       }
     } else {
       comboRef.current = 0;
-      scoreRef.current = Math.max(0, scoreRef.current - 20); // eased further, mistakes hurt less
+      scoreRef.current = Math.max(0, scoreRef.current - 16); // eased another 20%
       sounds.bad();
       setFlash("bad");
     }
@@ -529,7 +529,7 @@ export default function AdminExpoGamePage() {
 
       {screen === "game" && (
         <div className={`relative z-10 min-h-[100dvh] overflow-hidden transition-colors duration-100 ${flash === "good" ? "bg-neon-lime/10" : flash === "bad" ? "bg-neon-pink/15" : ""}`}>
-          <div className="absolute top-10 inset-x-0 z-20 flex items-center justify-between px-6 sm:px-12">
+          <div className="absolute top-10 inset-x-0 z-20 flex items-center justify-between px-6 sm:px-12 pointer-events-none">
             <div>
               <p className="text-[10px] uppercase tracking-[0.3em] text-white/45 font-bold">Score</p>
               <p className="font-display font-black text-4xl sm:text-6xl text-neon-cyan tabular-nums">{score}</p>
@@ -559,10 +559,9 @@ export default function AdminExpoGamePage() {
 
           {items.map((it) => (
             <button key={it.id}
-              onPointerDown={(e) => { e.preventDefault(); tapItem(it); }}
-              onTouchStart={(e) => e.preventDefault()}
+              onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); tapItem(it); }}
               className="absolute z-10 grid place-items-center rounded-full active:scale-90 transition-transform"
-              style={{ left: `${it.x}%`, top: `${it.y}%`, width: "clamp(76px, 13vw, 155px)", height: "clamp(76px, 13vw, 155px)", touchAction: "manipulation", WebkitTouchCallout: "none" }}>
+              style={{ left: `${it.x}%`, top: `${it.y}%`, width: "clamp(82px, 14vw, 165px)", height: "clamp(82px, 14vw, 165px)", touchAction: "none", WebkitTouchCallout: "none" }}>
               <span style={{ fontSize: "clamp(50px, 9vw, 108px)", lineHeight: 1 }}>{it.emoji}</span>
             </button>
           ))}
