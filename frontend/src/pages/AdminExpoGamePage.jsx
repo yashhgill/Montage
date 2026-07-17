@@ -165,8 +165,8 @@ export default function AdminExpoGamePage() {
   }, []);
   useEffect(() => () => stopLoops(), [stopLoops]);
 
-  const speedFactor = (elapsed) => 1 + Math.min(elapsed / BASE_SECONDS, 1) * 1.3;
-  const spawnMs = (elapsed) => Math.max(190, 520 - elapsed * 7.2);
+  const speedFactor = (elapsed) => 1 + Math.min(elapsed / BASE_SECONDS, 1) * 1.15; // ~10% easier ramp
+  const spawnMs = (elapsed) => Math.max(210, 520 - elapsed * 6.5); // ~10% gentler spawn ramp
 
   const endGame = useCallback(async () => {
     stopLoops();
@@ -198,7 +198,7 @@ export default function AdminExpoGamePage() {
     const pick = pool[Math.floor(Math.random() * pool.length)] || BAD[0];
     return {
       id: nextId++, x: 6 + Math.random() * 82, y: -8,
-      vy: 20 + Math.random() * 15, good, emoji: pick.e, name: pick.n,
+      vy: 18 + Math.random() * 13, good, emoji: pick.e, name: pick.n, // ~10% slower base fall
     };
   };
 
@@ -284,7 +284,7 @@ export default function AdminExpoGamePage() {
       }
     } else {
       comboRef.current = 0;
-      scoreRef.current = Math.max(0, scoreRef.current - 30);
+      scoreRef.current = Math.max(0, scoreRef.current - 27); // ~10% lighter penalty
       sounds.bad();
       setFlash("bad");
     }
@@ -558,15 +558,17 @@ export default function AdminExpoGamePage() {
           </div>
 
           {items.map((it) => (
-            <button key={it.id} onPointerDown={() => tapItem(it)}
+            <button key={it.id}
+              onPointerDown={(e) => { e.preventDefault(); tapItem(it); }}
+              onTouchStart={(e) => e.preventDefault()}
               className="absolute z-10 grid place-items-center rounded-full active:scale-90 transition-transform"
-              style={{ left: `${it.x}%`, top: `${it.y}%`, width: "clamp(64px, 11vw, 130px)", height: "clamp(64px, 11vw, 130px)", touchAction: "manipulation" }}>
-              <span style={{ fontSize: "clamp(42px, 7.5vw, 90px)", lineHeight: 1 }}>{it.emoji}</span>
+              style={{ left: `${it.x}%`, top: `${it.y}%`, width: "clamp(76px, 13vw, 155px)", height: "clamp(76px, 13vw, 155px)", touchAction: "manipulation", WebkitTouchCallout: "none" }}>
+              <span style={{ fontSize: "clamp(50px, 9vw, 108px)", lineHeight: 1 }}>{it.emoji}</span>
             </button>
           ))}
 
           <div className="absolute bottom-6 inset-x-0 text-center pointer-events-none opacity-80">
-            <span style={{ fontSize: "clamp(56px, 9vw, 110px)" }}>{recipe?.glass}</span>
+            <span style={{ fontSize: "clamp(64px, 10vw, 125px)" }}>{recipe?.glass}</span>
           </div>
         </div>
       )}
