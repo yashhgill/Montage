@@ -122,6 +122,7 @@ export default function AdminExpoGamePage() {
   const [combo, setCombo] = useState(0);
   const [timeLeft, setTimeLeft] = useState(BASE_SECONDS);
   const [bonusFlash, setBonusFlash] = useState(false);
+  const [bonusSeconds, setBonusSeconds] = useState(5);
   const [flash, setFlash] = useState("");
 
   const sounds = useSounds();
@@ -165,6 +166,23 @@ export default function AdminExpoGamePage() {
   }, []);
   useEffect(() => () => stopLoops(), [stopLoops]);
 
+  // Combo time-bonus taper: milestone 1 (combo 15) = +20s, milestone 2 (combo 30) = +14s,
+  // then -1s per further milestone, floored at +8s.
+  const comboBonusSeconds = (milestoneIndex) => {
+    if (milestoneIndex <= 1) return 20;
+    if (milestoneIndex === 2) return 14;
+    return Math.max(8, 16 - milestoneIndex);
+  };
+
+  // Score-triggered difficulty spike: normal up to 5800, ramps harder from 5800->7000,
+  // then stays brutally hard (this is what makes 9000 feel almost impossible).
+  const lerp = (a, b, t) => a + (b - a) * Math.max(0, Math.min(1, t));
+  const scoreHardness = (score) => {
+    if (score <= 5800) return 0;
+    if (score >= 7000) return 1;
+    return (score - 5800) / (7000 - 5800);
+  };
+
   const speedFactor = (elapsed) => 1 + Math.min(elapsed / BASE_SECONDS, 1) * 0.84; // eased another 20%
   const spawnMs = (elapsed) => Math.max(275, 520 - elapsed * 4.8); // eased another 20%
 
@@ -189,11 +207,15 @@ export default function AdminExpoGamePage() {
   }, [form, recipe, adminKey, stopLoops, loadBoard]);
 
   const spawnOne = () => {
+    const h = scoreHardness(scoreRef.current);
+    const wildcardCut = lerp(0.13, 0.08, h);
+    const recipeCut = lerp(0.70, 0.45, h);   // total "good" share shrinks 70% -> 45%
+    const distractorCut = lerp(0.85, 0.65, h); // more decoys as it gets harder
     const roll = Math.random();
     let pool, good;
-    if (roll < 0.13) { pool = [WILDCARD]; good = true; }
-    else if (roll < 0.70) { pool = recipe.need; good = true; }
-    else if (roll < 0.85) { pool = ALL_INGREDIENTS.filter((i) => !goodSetRef.current.has(i.e)); good = false; }
+    if (roll < wildcardCut) { pool = [WILDCARD]; good = true; }
+    else if (roll < recipeCut) { pool = recipe.need; good = true; }
+    else if (roll < distractorCut) { pool = ALL_INGREDIENTS.filter((i) => !goodSetRef.current.has(i.e)); good = false; }
     else { pool = BAD; good = false; }
     const pick = pool[Math.floor(Math.random() * pool.length)] || BAD[0];
     return {
@@ -209,12 +231,13 @@ export default function AdminExpoGamePage() {
       const dt = Math.min((now - lastRef.current) / 1000, 0.05);
       lastRef.current = now;
       elapsedRef.current += dt;
-      const sf = speedFactor(elapsedRef.current);
+      const h = scoreHardness(scoreRef.current);
+      const sf = speedFactor(elapsedRef.current) * (1 + h * 0.9); // up to +90% faster near 7000+
       itemsRef.current = itemsRef.current
         .map((it) => ({ ...it, y: it.y + it.vy * sf * dt }))
         .filter((it) => it.y < 112);
       spawnAccRef.current += dt * 1000;
-      const targetGap = spawnMs(elapsedRef.current);
+      const targetGap = Math.max(150, spawnMs(elapsedRef.current) / (1 + h * 0.7)); // items come faster too
       if (spawnAccRef.current >= targetGap) {
         spawnAccRef.current = 0;
         itemsRef.current = [...itemsRef.current, spawnOne()];
@@ -277,7 +300,10 @@ export default function AdminExpoGamePage() {
       setFlash("good");
       if (comboRef.current % 15 === 0 && comboRef.current !== comboMilestoneRef.current) {
         comboMilestoneRef.current = comboRef.current;
-        setTimeLeft((t) => t + 5);
+        const milestoneIndex = comboRef.current / 15;
+        const secs = comboBonusSeconds(milestoneIndex);
+        setTimeLeft((t) => t + secs);
+        setBonusSeconds(secs);
         setBonusFlash(true);
         sounds.comboBonus();
         setTimeout(() => setBonusFlash(false), 900);
@@ -547,7 +573,7 @@ export default function AdminExpoGamePage() {
 
           {bonusFlash && (
             <div className="absolute top-32 sm:top-36 inset-x-0 z-20 text-center pointer-events-none">
-              <p className="inline-block font-display font-black text-2xl sm:text-4xl text-neon-lime animate-bounce">+5 SECONDS! 🔥</p>
+              <p className="inline-block font-display font-black text-2xl sm:text-4xl text-neon-lime animate-bounce">+{bonusSeconds} SECONDS! 🔥</p>
             </div>
           )}
 
