@@ -150,6 +150,30 @@ export default function PhotoboothPage() {
     }
   }, [screen]);
 
+  // ─── Idle timeout: if a guest walks away mid-flow with no interaction,
+  // return to the attract screen so the kiosk never gets stuck. ───
+  const IDLE_MS = 60000; // 60s of no touch/tap/key activity
+  const screenRef = useRef(screen);
+  useEffect(() => { screenRef.current = screen; }, [screen]);
+
+  useEffect(() => {
+    let idleTimer = null;
+    const resetIdleTimer = () => {
+      if (idleTimer) clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => {
+        if (screenRef.current !== "attract") reset();
+      }, IDLE_MS);
+    };
+    const events = ["pointerdown", "touchstart", "keydown"];
+    events.forEach((evt) => window.addEventListener(evt, resetIdleTimer, { passive: true }));
+    resetIdleTimer();
+    return () => {
+      events.forEach((evt) => window.removeEventListener(evt, resetIdleTimer));
+      if (idleTimer) clearTimeout(idleTimer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <div className="relative min-h-[100dvh] bg-[#050508] text-white overflow-hidden select-none expo-kiosk"
       style={{ touchAction: "manipulation", overscrollBehavior: "none" }}>
