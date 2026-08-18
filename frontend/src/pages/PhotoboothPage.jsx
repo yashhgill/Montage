@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import axios from "axios";
-import { Camera, Loader2, Check, RotateCcw, Heart, QrCode, Sparkles } from "lucide-react";
+import { Camera, Loader2, Check, RotateCcw, Heart, QrCode, Sparkles, Video } from "lucide-react";
 import PartyLights from "../components/PartyLights";
 import DiscoBall from "../components/DiscoBall";
 
@@ -8,7 +8,10 @@ const API = "/api";
 const CLAIM_TIMEOUT_MS = 90000; // give the photographer 90s to take + upload the shot
 
 export default function PhotoboothPage() {
-  const [config, setConfig] = useState({ couple_names: "The Happy Couple", duitnow_qr_url: "", styles: [] });
+  const [config, setConfig] = useState({ couple_names: "The Happy Couple", duitnow_qr_url: "", styles: [], capture_mode: "dslr" });
+  const [cameraReady, setCameraReady] = useState(false);
+  const [cameraError, setCameraError] = useState("");
+  const [deviceCountdown, setDeviceCountdown] = useState(0);
   // screens: attract | style | capture | confirm | processing | result | wish | gift | thanks
   const [screen, setScreen] = useState("attract");
   const [style, setStyle] = useState(null);
@@ -20,6 +23,8 @@ export default function PhotoboothPage() {
   const [waitStart, setWaitStart] = useState(null);
 
   const pollRef = useRef(null);
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
 
   useEffect(() => {
     axios.get(`${API}/photobooth/config`).then((r) => setConfig(r.data)).catch(() => {});
@@ -28,13 +33,74 @@ export default function PhotoboothPage() {
   const stopPoll = useCallback(() => { if (pollRef.current) clearInterval(pollRef.current); pollRef.current = null; }, []);
   useEffect(() => () => stopPoll(), [stopPoll]);
 
+  const stopCamera = () => {
+    if (streamRef.current) { streamRef.current.getTracks().forEach((t) => t.stop()); streamRef.current = null; }
+    setCameraReady(false);
+  };
+
   const reset = () => {
     stopPoll();
+    stopCamera();
     setScreen("attract"); setStyle(null); setEntryId(null);
-    setRawUrl(""); setAiResult(null); setWish({ name: "", message: "" }); setError("");
+    setRawUrl(""); setAiResult(null); setWish({ name: "", message: "" }); setError(""); setCameraError("");
+  };
+
+  const startDeviceCamera = async () => {
+    setError(""); setCameraError("");
+    setScreen("device-capture");
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: 1280, height: 960 }, audio: false });
+      streamRef.current = stream;
+      if (videoRef.current) { videoRef.current.srcObject = stream; await videoRef.current.play(); }
+      setCameraReady(true);
+    } catch (e) {
+      setCameraError("Couldn't access the camera. Please allow camera permission and try again.");
+    }
+  };
+
+  const shootDeviceCamera = () => {
+    let n = 3;
+    setDeviceCountdown(3);
+    const iv = setInterval(() => {
+      n -= 1;
+      if (n > 0) { setDeviceCountdown(n); }
+      else {
+        clearInterval(iv);
+        setDeviceCountdown(0);
+        capturePhotoFromVideo();
+      }
+    }, 700);
+  };
+
+  const capturePhotoFromVideo = async () => {
+    const video = videoRef.current;
+    if (!video) return;
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+    const ctx = canvas.getContext("2d");
+    // mirror the image so it matches what the guest saw in the preview
+    ctx.translate(canvas.width, 0); ctx.scale(-1, 1);
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    canvas.toBlob(async (blob) => {
+      stopCamera();
+      setScreen("processing-upload");
+      try {
+        const bytes = await blob.arrayBuffer();
+        const { data } = await axios.post(`${API}/photobooth/self-capture`, bytes, {
+          headers: { "content-type": "image/jpeg" },
+        });
+        setEntryId(data.id);
+        setRawUrl(data.raw_photo_url);
+        setScreen("confirm");
+      } catch (e) {
+        setError("Couldn't save your photo. Please try again.");
+        setScreen("style");
+      }
+    }, "image/jpeg", 0.92);
   };
 
   const beginCapture = () => {
+    if (config.capture_mode === "device") { startDeviceCamera(); return; }
     setError("");
     const since = new Date().toISOString();
     const startedAt = Date.now();
@@ -140,6 +206,41 @@ export default function PhotoboothPage() {
                 <button onClick={reset} className="mt-4 px-6 py-3 rounded-full border border-white/20 font-bold">Start Over</button>
               </div>
             )}
+          </div>
+        )}
+
+        {screen === "device-capture" && (
+          <div className="w-full max-w-lg">
+            <h2 className="font-display font-black text-3xl sm:text-4xl tracking-tighter mb-4">
+              {deviceCountdown > 0 ? deviceCountdown : "Get ready!"}
+            </h2>
+            <div className="relative rounded-2xl overflow-hidden border border-white/12 bg-black aspect-[4/3]">
+              <video ref={videoRef} muted playsInline className="w-full h-full object-cover" style={{ transform: "scaleX(-1)" }} />
+              {!cameraReady && !cameraError && (
+                <div className="absolute inset-0 grid place-items-center bg-black/60">
+                  <Loader2 size={40} className="animate-spin text-white/60" />
+                </div>
+              )}
+            </div>
+            {cameraError && (
+              <div className="mt-4">
+                <p className="text-neon-pink text-sm">{cameraError}</p>
+                <button onClick={reset} className="mt-4 px-6 py-3 rounded-full border border-white/20 font-bold">Start Over</button>
+              </div>
+            )}
+            {cameraReady && !cameraError && (
+              <button onClick={shootDeviceCamera} disabled={deviceCountdown > 0}
+                className="mt-6 w-full py-5 rounded-full bg-neon-cyan text-black font-black text-xl neon-glow-cyan flex items-center justify-center gap-2 disabled:opacity-60">
+                <Video size={20} /> {deviceCountdown > 0 ? "Hold still..." : "Take Photo"}
+              </button>
+            )}
+          </div>
+        )}
+
+        {screen === "processing-upload" && (
+          <div>
+            <Loader2 size={56} className="animate-spin text-neon-cyan mx-auto" />
+            <p className="mt-5 text-white/60 text-lg">Saving your photo…</p>
           </div>
         )}
 
