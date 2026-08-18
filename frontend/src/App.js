@@ -4,6 +4,9 @@ import BookingsPage from "@/pages/BookingsPage";
 import BookingSuccessPage from "@/pages/BookingSuccessPage";
 import AdminNewsletterPage from "@/pages/AdminNewsletterPage";
 import AdminExpoGamePage from "@/pages/AdminExpoGamePage";
+import PhotoboothPage from "@/pages/PhotoboothPage";
+import PhotoboothSharePage from "@/pages/PhotoboothSharePage";
+import AdminPhotoboothPage from "@/pages/AdminPhotoboothPage";
 
 function App() {
   return (
@@ -14,6 +17,9 @@ function App() {
         <Route path="/bookings/success" element={<BookingSuccessPage />} />
         <Route path="/admin/newsletter" element={<AdminNewsletterPage />} />
         <Route path="/admin/expo" element={<AdminExpoGamePage />} />
+        <Route path="/photobooth" element={<PhotoboothPage />} />
+        <Route path="/photobooth/p/:token" element={<PhotoboothSharePage />} />
+        <Route path="/admin/photobooth" element={<AdminPhotoboothPage />} />
       </Routes>
     </BrowserRouter>
   );
