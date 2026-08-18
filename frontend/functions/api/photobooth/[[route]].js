@@ -55,6 +55,10 @@ export async function onRequest(context) {
     if (method === "GET" && head === "config") return handleConfig(env);
     if (method === "GET" && head === "admin" && sub === "gallery") return handleGallery(request, env);
     if (method === "GET" && head === "img") return handleImg(env, sub, route[2]);
+    if (method === "GET" && head === "qr") return handleQrImage(env);
+    if (method === "POST" && head === "self-capture") return handleSelfCapture(request, env);
+    if (method === "POST" && head === "admin" && sub === "settings") return handleSaveSettings(request, env);
+    if (method === "POST" && head === "admin" && sub === "settings-qr") return handleSaveQr(request, env);
     return json({ detail: "Not found" }, 404);
   } catch (err) {
     return json({ detail: err.message || "Server error" }, 500);
@@ -188,11 +192,70 @@ async function handleGetEntry(env, token) {
 
 // ─── Public config: couple names, DuitNow QR, available styles ───
 async function handleConfig(env) {
+  const site = env.SITE_URL || "https://montageevents.my";
+  let row = null;
+  try { row = await env.DB.prepare(`SELECT * FROM photobooth_settings WHERE id=1`).first(); } catch (e) { /* table may not exist yet */ }
   return json({
-    couple_names: env.COUPLE_NAMES || "The Happy Couple",
-    duitnow_qr_url: env.DUITNOW_QR_URL || "",
+    couple_names: row?.couple_names || env.COUPLE_NAMES || "The Happy Couple",
+    duitnow_qr_url: row?.duitnow_qr_key ? `${site}/api/photobooth/qr` : (env.DUITNOW_QR_URL || ""),
+    capture_mode: row?.capture_mode || "dslr",
     styles: STYLES.map(({ id, label }) => ({ id, label })),
   });
+}
+
+// ─── Admin: save couple name + capture mode ───
+async function handleSaveSettings(request, env) {
+  if (!checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
+  let b;
+  try { b = await request.json(); } catch { return json({ detail: "Invalid request" }, 400); }
+  const coupleNames = String(b.couple_names || "").trim().slice(0, 120);
+  const captureMode = b.capture_mode === "device" ? "device" : "dslr";
+  await env.DB.prepare(
+    `INSERT INTO photobooth_settings (id, couple_names, capture_mode, updated_at)
+     VALUES (1, ?, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET couple_names=excluded.couple_names, capture_mode=excluded.capture_mode, updated_at=excluded.updated_at`
+  ).bind(coupleNames, captureMode, new Date().toISOString()).run();
+  return json({ ok: true });
+}
+
+// ─── Admin: upload the couple's DuitNow QR image ───
+async function handleSaveQr(request, env) {
+  if (!checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
+  const bytes = await request.arrayBuffer();
+  if (!bytes || bytes.byteLength < 50) return json({ detail: "Empty upload" }, 400);
+  const key = "settings/duitnow-qr.png";
+  await env.PHOTOBOOTH_BUCKET.put(key, bytes, { httpMetadata: { contentType: "image/png" } });
+  await env.DB.prepare(
+    `INSERT INTO photobooth_settings (id, duitnow_qr_key, updated_at) VALUES (1, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET duitnow_qr_key=excluded.duitnow_qr_key, updated_at=excluded.updated_at`
+  ).bind(key, new Date().toISOString()).run();
+  return json({ ok: true });
+}
+
+// ─── Public: serve the couple's QR image (shown on the kiosk) ───
+async function handleQrImage(env) {
+  const row = await env.DB.prepare(`SELECT duitnow_qr_key FROM photobooth_settings WHERE id=1`).first();
+  if (!row?.duitnow_qr_key) return new Response("Not found", { status: 404 });
+  const obj = await env.PHOTOBOOTH_BUCKET.get(row.duitnow_qr_key);
+  if (!obj) return new Response("Not found", { status: 404 });
+  return new Response(obj.body, {
+    headers: { "content-type": obj.httpMetadata?.contentType || "image/png", "cache-control": "public, max-age=300" },
+  });
+}
+
+// ─── Guest device camera: self-capture upload, skips the DSLR claim/poll flow ───
+async function handleSelfCapture(request, env) {
+  const bytes = await request.arrayBuffer();
+  if (!bytes || bytes.byteLength < 100) return json({ detail: "Empty upload" }, 400);
+  const id = uid();
+  const objectKey = `raw/${id}.jpg`;
+  await env.PHOTOBOOTH_BUCKET.put(objectKey, bytes, { httpMetadata: { contentType: "image/jpeg" } });
+  const now = new Date().toISOString();
+  await env.DB.prepare(
+    `INSERT INTO photobooth_entries (id, status, raw_photo_key, created_at, claimed_at) VALUES (?, 'claimed', ?, ?, ?)`
+  ).bind(id, objectKey, now, now).run();
+  const site = env.SITE_URL || "https://montageevents.my";
+  return json({ ok: true, id, raw_photo_url: `${site}/api/photobooth/img/${id}/raw` });
 }
 
 // ─── Serve the actual image bytes from R2 (raw or ai) ───
