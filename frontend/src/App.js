@@ -7,6 +7,7 @@ import AdminExpoGamePage from "@/pages/AdminExpoGamePage";
 import PhotoboothPage from "@/pages/PhotoboothPage";
 import PhotoboothSharePage from "@/pages/PhotoboothSharePage";
 import AdminPhotoboothPage from "@/pages/AdminPhotoboothPage";
+import AdminInvoicePage from "@/pages/AdminInvoicePage";
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
         <Route path="/photobooth" element={<PhotoboothPage />} />
         <Route path="/photobooth/p/:token" element={<PhotoboothSharePage />} />
         <Route path="/admin/photobooth" element={<AdminPhotoboothPage />} />
+        <Route path="/admin/invoice" element={<AdminInvoicePage />} />
       </Routes>
     </BrowserRouter>
   );
