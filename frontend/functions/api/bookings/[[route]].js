@@ -68,6 +68,7 @@ export async function onRequest(context) {
     if (method === "GET" && head === "status") return handleStatus(env, route[1]);
     if (method === "GET" && head === "promo") return handlePromo(env, route[1]);
     if (method === "GET" && head === "test-fire") return handleTestFire(request, env);
+    if (method === "POST" && head === "admin" && route[1] === "manual-invoice") return handleAdminManualInvoice(request, env);
     return json({ detail: "Not found" }, 404);
   } catch (err) {
     return json({ detail: err.message || "Server error" }, 500);
@@ -321,6 +322,66 @@ function fullPaymentDue(dateStr) {
 
 
 // ─── TEMPORARY demo endpoint — remove after demo ────────────
+function checkAdmin(request, env) {
+  const key = request.headers.get("x-admin-key") || "";
+  const expected = env.BOOKING_ADMIN_KEY || env.NEWSLETTER_ADMIN_KEY;
+  return !!expected && key === expected;
+}
+
+// ─── Staff manual invoice: key in an order taken by phone/in-person, ────────
+// generate the same branded PDF invoice, email it, block the calendar date,
+// and save it into the same booking system as any online booking.
+async function handleAdminManualInvoice(request, env) {
+  if (!checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
+  let b;
+  try { b = await request.json(); } catch { return json({ detail: "Invalid request" }, 400); }
+
+  const name = String(b.name || "").trim();
+  const phone = String(b.phone || "").trim();
+  const email = String(b.email || "").trim();
+  const packageName = String(b.package_name || "").trim();
+  const totalRm = Math.max(0, Number(b.package_total) || 0);
+  const paidRm = Math.max(0, Number(b.amount_paid) || 0);
+  const venue = String(b.venue || "").trim();
+  const eventDate = String(b.event_date || "").trim();
+  const timeSlot = String(b.time_slot || "").trim() || "Full Day";
+  const pax = String(b.pax || "").trim();
+  const notes = String(b.notes || "").trim();
+
+  if (!name || !phone || !email) return json({ detail: "Name, phone and email are required" }, 400);
+  if (!packageName || totalRm <= 0) return json({ detail: "Package name and total amount are required" }, 400);
+  if (!eventDate) return json({ detail: "Event date is required" }, 400);
+
+  const reference = "MTG-STAFF-" + new Date().toISOString().slice(2, 10).replace(/-/g, "") +
+    "-" + Math.random().toString(36).slice(2, 6).toUpperCase();
+  const packagePriceStr = "RM " + totalRm.toLocaleString("en-MY");
+
+  const rec = {
+    reference, status: "paid",
+    package_name: packageName, package_price: packagePriceStr,
+    venue, event_date: eventDate, time_slot: timeSlot, pax, notes,
+    name, email, phone, deposit_rm: paidRm,
+  };
+
+  const result = { reference, calendar_event_id: "", email_sent: false, errors: [] };
+  try { result.calendar_event_id = await blockCalendar(env, rec); } catch (e) { result.errors.push("calendar: " + e.message); }
+  try { result.email_sent = await sendEmail(env, rec); } catch (e) { result.errors.push("email: " + e.message); }
+  try {
+    await env.DB.prepare(
+      `INSERT INTO event_bookings
+       (reference,status,heard_from,heard_from_detail,is_complimentary,package_id,package_name,
+        package_price,venue,event_date,time_slot,pax,notes,name,email,phone,bill_code,deposit_rm,
+        calendar_event_id,email_sent,created_at,paid_at)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+    ).bind(reference, "paid", "staff_manual", "", 0, "manual", packageName, packagePriceStr,
+      venue, eventDate, timeSlot, pax, notes, name, email, phone, "STAFF-MANUAL", paidRm,
+      result.calendar_event_id, result.email_sent ? 1 : 0, new Date().toISOString(), new Date().toISOString()).run();
+    result.saved_to_db = true;
+  } catch (e) { result.errors.push("db: " + e.message); }
+
+  return json(result);
+}
+
 async function handleTestFire(request, env) {
   const url = new URL(request.url);
   const key = url.searchParams.get("key") || "";
