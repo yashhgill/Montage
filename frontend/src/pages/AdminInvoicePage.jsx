@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
-import { Lock, Loader2, Send, CheckCircle2, XCircle, FileText } from "lucide-react";
+import { Lock, Loader2, Send, CheckCircle2, XCircle, FileText, Plus, Trash2 } from "lucide-react";
 
 const API = "/api";
-
 const DEFAULT_SLOTS = ["Morning (10am - 2pm)", "Afternoon (2pm - 6pm)", "Evening (6pm - 11pm)", "Full Day"];
+const blankItem = () => ({ heading: "", details: "", rate: "", qty: "" });
 
 export default function AdminInvoicePage() {
   const [adminKey, setAdminKey] = useState("");
@@ -14,9 +14,11 @@ export default function AdminInvoicePage() {
 
   const [form, setForm] = useState({
     name: "", phone: "", email: "",
-    package_name: "", package_total: "", amount_paid: "",
+    bill_to_name: "", bill_to_address: "", term: "COD",
+    amount_paid: "",
     event_date: "", time_slot: DEFAULT_SLOTS[0], venue: "", pax: "", notes: "",
   });
+  const [items, setItems] = useState([blankItem()]);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null);
   const [formError, setFormError] = useState("");
@@ -28,6 +30,17 @@ export default function AdminInvoicePage() {
   }, []);
 
   const set = (patch) => setForm((f) => ({ ...f, ...patch }));
+  const setItem = (idx, patch) => setItems((its) => its.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
+  const addItem = () => setItems((its) => [...its, blankItem()]);
+  const removeItem = (idx) => setItems((its) => its.filter((_, i) => i !== idx));
+
+  const itemAmount = (it) => {
+    const r = Number(it.rate), q = Number(it.qty);
+    if (it.rate !== "" && it.qty !== "" && !isNaN(r) && !isNaN(q)) return r * q;
+    return 0;
+  };
+  const subtotal = items.reduce((s, it) => s + itemAmount(it), 0);
+
   const authHeaders = { headers: { "x-admin-key": adminKey } };
 
   const login = () => {
@@ -37,17 +50,22 @@ export default function AdminInvoicePage() {
 
   const submit = async () => {
     setFormError(""); setResult(null);
-    if (!form.name.trim() || !form.phone.trim() || !form.email.trim()) { setFormError("Name, phone and email are required."); return; }
-    if (!form.package_name.trim() || !form.package_total) { setFormError("Package name and total amount are required."); return; }
+    if (!form.name.trim() || !form.phone.trim() || !form.email.trim()) { setFormError("Customer name, phone and email are required."); return; }
+    if (!form.bill_to_name.trim() && !form.name.trim()) { setFormError("Bill To name is required."); return; }
     if (!form.event_date) { setFormError("Event date is required."); return; }
+    const validItems = items.filter((it) => it.heading.trim() || itemAmount(it) > 0);
+    if (validItems.length === 0) { setFormError("Add at least one line item with a heading and amount."); return; }
 
     setSubmitting(true);
     try {
-      const { data } = await axios.post(`${API}/bookings/admin/manual-invoice`, form, authHeaders);
+      const { data } = await axios.post(`${API}/bookings/admin/manual-invoice`, {
+        ...form, items: validItems,
+      }, authHeaders);
       setResult(data);
       if (!data.errors?.length) {
-        setForm({ name: "", phone: "", email: "", package_name: "", package_total: "", amount_paid: "",
-          event_date: "", time_slot: slots[0], venue: "", pax: "", notes: "" });
+        setForm({ name: "", phone: "", email: "", bill_to_name: "", bill_to_address: "", term: "COD",
+          amount_paid: "", event_date: "", time_slot: slots[0], venue: "", pax: "", notes: "" });
+        setItems([blankItem()]);
       }
     } catch (e) {
       if (e?.response?.status === 401) { setAuthed(false); setAuthError("Admin key rejected."); }
@@ -84,9 +102,10 @@ export default function AdminInvoicePage() {
 
       <div className="max-w-3xl mx-auto px-5 py-8">
         <p className="text-white/55 text-sm mb-6">
-          For orders taken by phone or in person. This generates the same branded PDF invoice used for online bookings, emails it to the customer, blocks the event date on the calendar, and saves it into the booking system.
+          For orders taken by phone or in person. Generates Montage's official invoice (matching the letterhead format), emails it to the customer, blocks the event date on the calendar, and saves it into the booking system.
         </p>
 
+        <h2 className="text-xs uppercase tracking-[0.25em] font-bold text-neon-cyan mb-3">Customer Contact</h2>
         <div className="grid sm:grid-cols-2 gap-4">
           <Field label="Customer Name">
             <input value={form.name} onChange={(e) => set({ name: e.target.value })} placeholder="Full name"
@@ -97,31 +116,86 @@ export default function AdminInvoicePage() {
               className="w-full bg-white/[0.04] border border-white/12 rounded-xl px-4 py-3 text-sm outline-none focus:border-neon-cyan" />
           </Field>
         </div>
-
         <Field label="Email" className="mt-4">
           <input value={form.email} onChange={(e) => set({ email: e.target.value })} type="email" placeholder="customer@email.com"
             className="w-full bg-white/[0.04] border border-white/12 rounded-xl px-4 py-3 text-sm outline-none focus:border-neon-cyan" />
         </Field>
 
-        <Field label="Package / Service" className="mt-4">
-          <input value={form.package_name} onChange={(e) => set({ package_name: e.target.value })}
-            placeholder="e.g. Wedding Signature, or a custom combo"
-            className="w-full bg-white/[0.04] border border-white/12 rounded-xl px-4 py-3 text-sm outline-none focus:border-neon-cyan" />
-        </Field>
-
-        <div className="grid sm:grid-cols-2 gap-4 mt-4">
-          <Field label="Total Package Amount (RM)">
-            <input value={form.package_total} onChange={(e) => set({ package_total: e.target.value })} type="number" min="0" placeholder="7999"
+        <h2 className="text-xs uppercase tracking-[0.25em] font-bold text-neon-cyan mt-7 mb-3">Bill To</h2>
+        <p className="text-[11px] text-white/40 mb-3">Leave blank to bill the customer above directly. Fill in for a corporate client (e.g. a hotel or company).</p>
+        <div className="grid sm:grid-cols-2 gap-4">
+          <Field label="Bill To Name (company or individual)">
+            <input value={form.bill_to_name} onChange={(e) => set({ bill_to_name: e.target.value })} placeholder="e.g. Hiranandani Hotels Sdn. Bhd."
               className="w-full bg-white/[0.04] border border-white/12 rounded-xl px-4 py-3 text-sm outline-none focus:border-neon-cyan" />
           </Field>
-          <Field label="Amount Paid Now (RM)">
-            <input value={form.amount_paid} onChange={(e) => set({ amount_paid: e.target.value })} type="number" min="0" placeholder="500"
-              className="w-full bg-white/[0.04] border border-white/12 rounded-xl px-4 py-3 text-sm outline-none focus:border-neon-cyan" />
+          <Field label="Term">
+            <select value={form.term} onChange={(e) => set({ term: e.target.value })}
+              className="w-full bg-white/[0.04] border border-white/12 rounded-xl px-4 py-3 text-sm outline-none focus:border-neon-cyan">
+              <option value="COD" className="bg-[#0A0A14]">COD</option>
+              <option value="Deposit" className="bg-[#0A0A14]">Deposit</option>
+              <option value="Net 7" className="bg-[#0A0A14]">Net 7</option>
+              <option value="Net 30" className="bg-[#0A0A14]">Net 30</option>
+            </select>
           </Field>
         </div>
-        <p className="text-[11px] text-white/40 mt-1.5">Can be a deposit or the full amount — the invoice will show the remaining balance automatically.</p>
+        <Field label="Bill To Address (one line each)" className="mt-4">
+          <textarea value={form.bill_to_address} onChange={(e) => set({ bill_to_address: e.target.value })} rows={3}
+            placeholder={"Doubletree by Hilton Kuala Lumpur\nThe Intermark, 348 Jalan Tun Razak,\n50400 Kuala Lumpur, Malaysia"}
+            className="w-full bg-white/[0.04] border border-white/12 rounded-xl px-4 py-3 text-sm outline-none focus:border-neon-cyan resize-none" />
+        </Field>
 
-        <div className="grid sm:grid-cols-2 gap-4 mt-4">
+        <h2 className="text-xs uppercase tracking-[0.25em] font-bold text-neon-cyan mt-7 mb-3">Line Items</h2>
+        <div className="space-y-4">
+          {items.map((it, idx) => (
+            <div key={idx} className="rounded-2xl border border-white/12 bg-white/[0.03] p-4">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-bold text-white/50">Item {idx + 1}</span>
+                {items.length > 1 && (
+                  <button onClick={() => removeItem(idx)} className="text-white/30 hover:text-neon-pink"><Trash2 size={14} /></button>
+                )}
+              </div>
+              <input value={it.heading} onChange={(e) => setItem(idx, { heading: e.target.value })}
+                placeholder="Item heading, e.g. ALL IN CHARGES / Racing Simulator"
+                className="w-full bg-white/[0.04] border border-white/12 rounded-xl px-4 py-3 text-sm outline-none focus:border-neon-cyan mb-3" />
+              <textarea value={it.details} onChange={(e) => setItem(idx, { details: e.target.value })} rows={3}
+                placeholder={"One line per detail:\nComes with Logitech G29, bucket seat, PS4 (1 unit)\nEvery Saturday and Sunday\nDate: 1/8, 2/8, 8/8..."}
+                className="w-full bg-white/[0.04] border border-white/12 rounded-xl px-4 py-3 text-sm outline-none focus:border-neon-cyan resize-none mb-3" />
+              <div className="grid grid-cols-3 gap-3">
+                <Field label="Rate (RM)">
+                  <input value={it.rate} onChange={(e) => setItem(idx, { rate: e.target.value })} type="number" min="0" placeholder="optional"
+                    className="w-full bg-white/[0.04] border border-white/12 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-neon-cyan" />
+                </Field>
+                <Field label="Qty">
+                  <input value={it.qty} onChange={(e) => setItem(idx, { qty: e.target.value })} type="number" min="0" placeholder="optional"
+                    className="w-full bg-white/[0.04] border border-white/12 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-neon-cyan" />
+                </Field>
+                <Field label="Amount (RM)">
+                  <div className="px-3 py-2.5 text-sm text-white/70 bg-white/[0.02] rounded-xl border border-white/8">
+                    {itemAmount(it) > 0 ? itemAmount(it).toLocaleString("en-MY") : "—"}
+                  </div>
+                </Field>
+              </div>
+              <p className="text-[10px] text-white/35 mt-2">Leave Rate/Qty blank and this row won't show those columns on the invoice — just a flat amount is needed then (enter it via Rate with Qty 1).</p>
+            </div>
+          ))}
+        </div>
+        <button onClick={addItem} className="mt-3 inline-flex items-center gap-2 text-sm text-neon-cyan font-semibold hover:underline">
+          <Plus size={14} /> Add another line item
+        </button>
+
+        <div className="mt-5 flex justify-end text-sm">
+          <span className="text-white/50 mr-3">Subtotal:</span>
+          <span className="font-bold">RM {subtotal.toLocaleString("en-MY")}</span>
+        </div>
+
+        <Field label="Amount Paid Now (RM) — leave blank for full COD payment" className="mt-4">
+          <input value={form.amount_paid} onChange={(e) => set({ amount_paid: e.target.value })} type="number" min="0" placeholder="Leave blank if this is the full amount"
+            className="w-full bg-white/[0.04] border border-white/12 rounded-xl px-4 py-3 text-sm outline-none focus:border-neon-cyan" />
+        </Field>
+        <p className="text-[11px] text-white/40 mt-1.5">Enter a partial amount only for a deposit — the invoice will then show the remaining balance automatically.</p>
+
+        <h2 className="text-xs uppercase tracking-[0.25em] font-bold text-neon-cyan mt-7 mb-3">Event Details</h2>
+        <div className="grid sm:grid-cols-2 gap-4">
           <Field label="Event Date">
             <input value={form.event_date} onChange={(e) => set({ event_date: e.target.value })} type="date"
               className="w-full bg-white/[0.04] border border-white/12 rounded-xl px-4 py-3 text-sm outline-none focus:border-neon-cyan" />
@@ -133,7 +207,6 @@ export default function AdminInvoicePage() {
             </select>
           </Field>
         </div>
-
         <div className="grid sm:grid-cols-2 gap-4 mt-4">
           <Field label="Venue">
             <input value={form.venue} onChange={(e) => set({ venue: e.target.value })} placeholder="Venue name / address"
@@ -144,10 +217,9 @@ export default function AdminInvoicePage() {
               className="w-full bg-white/[0.04] border border-white/12 rounded-xl px-4 py-3 text-sm outline-none focus:border-neon-cyan" />
           </Field>
         </div>
-
-        <Field label="Notes" className="mt-4">
-          <textarea value={form.notes} onChange={(e) => set({ notes: e.target.value })} rows={3}
-            placeholder="Anything else about this order..."
+        <Field label="Internal Notes" className="mt-4">
+          <textarea value={form.notes} onChange={(e) => set({ notes: e.target.value })} rows={2}
+            placeholder="Not shown on the invoice — for your own records"
             className="w-full bg-white/[0.04] border border-white/12 rounded-xl px-4 py-3 text-sm outline-none focus:border-neon-cyan resize-none" />
         </Field>
 
