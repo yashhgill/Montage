@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
-import { Lock, Loader2, Send, CheckCircle2, XCircle, FileText, Plus, Trash2 } from "lucide-react";
+import { Lock, Loader2, Send, CheckCircle2, XCircle, FileText, Plus, Trash2, Eye, X } from "lucide-react";
 
 const API = "/api";
 const DEFAULT_SLOTS = ["Morning (10am - 2pm)", "Afternoon (2pm - 6pm)", "Evening (6pm - 11pm)", "Full Day"];
@@ -22,6 +22,8 @@ export default function AdminInvoicePage() {
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null);
   const [formError, setFormError] = useState("");
+  const [previewing, setPreviewing] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState(null);
 
   useEffect(() => {
     axios.get(`${API}/bookings/config`).then((r) => {
@@ -46,6 +48,32 @@ export default function AdminInvoicePage() {
   const login = () => {
     if (!adminKey.trim()) { setAuthError("Enter your admin key."); return; }
     setAuthed(true); setAuthError("");
+  };
+
+  const closePreview = () => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewUrl(null);
+  };
+
+  const doPreview = async () => {
+    setFormError("");
+    const validItems = items.filter((it) => it.heading.trim() || itemAmount(it) > 0);
+    if (validItems.length === 0) { setFormError("Add at least one line item to preview."); return; }
+    setPreviewing(true);
+    try {
+      const { data } = await axios.post(`${API}/bookings/admin/preview-invoice`, {
+        ...form, items: validItems,
+      }, authHeaders);
+      const bin = atob(data.pdf_base64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      const blob = new Blob([bytes], { type: "application/pdf" });
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(URL.createObjectURL(blob));
+    } catch (e) {
+      if (e?.response?.status === 401) { setAuthed(false); setAuthError("Admin key rejected."); }
+      else setFormError(e?.response?.data?.detail || "Could not generate preview.");
+    } finally { setPreviewing(false); }
   };
 
   const submit = async () => {
@@ -225,10 +253,16 @@ export default function AdminInvoicePage() {
 
         {formError && <p className="mt-4 text-sm text-neon-pink">{formError}</p>}
 
-        <button onClick={submit} disabled={submitting}
-          className="mt-6 w-full inline-flex items-center justify-center gap-2 px-6 py-4 rounded-xl bg-neon-cyan text-black font-bold hover:scale-[1.01] transition-transform disabled:opacity-50">
-          {submitting ? <><Loader2 size={18} className="animate-spin" /> Generating &amp; sending…</> : <><Send size={18} /> Generate &amp; Send Invoice</>}
-        </button>
+        <div className="mt-6 flex flex-col sm:flex-row gap-3">
+          <button onClick={doPreview} disabled={previewing}
+            className="flex-1 inline-flex items-center justify-center gap-2 px-6 py-4 rounded-xl border border-white/20 font-bold hover:bg-white/5 transition-colors disabled:opacity-50">
+            {previewing ? <><Loader2 size={18} className="animate-spin" /> Building preview…</> : <><Eye size={18} /> Preview Invoice</>}
+          </button>
+          <button onClick={submit} disabled={submitting}
+            className="flex-1 inline-flex items-center justify-center gap-2 px-6 py-4 rounded-xl bg-neon-cyan text-black font-bold hover:scale-[1.01] transition-transform disabled:opacity-50">
+            {submitting ? <><Loader2 size={18} className="animate-spin" /> Generating &amp; sending…</> : <><Send size={18} /> Generate &amp; Send Invoice</>}
+          </button>
+        </div>
 
         {result && (
           <div className="mt-6 rounded-2xl border border-white/12 bg-white/[0.03] p-5 space-y-2 text-sm">
@@ -244,6 +278,28 @@ export default function AdminInvoicePage() {
           </div>
         )}
       </div>
+
+      {previewUrl && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm grid place-items-center p-4">
+          <div className="w-full max-w-3xl h-[85vh] bg-[#0A0A14] rounded-2xl border border-white/12 flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-white/10 shrink-0">
+              <p className="font-bold flex items-center gap-2"><Eye size={16} className="text-neon-cyan" /> Invoice Preview <span className="text-xs text-neon-yellow font-normal">— not yet sent</span></p>
+              <button onClick={closePreview} className="text-white/50 hover:text-white"><X size={20} /></button>
+            </div>
+            <iframe title="Invoice preview" src={previewUrl} className="flex-1 w-full bg-white" />
+            <div className="flex flex-col sm:flex-row gap-3 px-5 py-4 border-t border-white/10 shrink-0">
+              <button onClick={closePreview}
+                className="flex-1 py-3 rounded-xl border border-white/20 font-bold hover:bg-white/5">
+                Close &amp; Keep Editing
+              </button>
+              <button onClick={() => { closePreview(); submit(); }} disabled={submitting}
+                className="flex-1 inline-flex items-center justify-center gap-2 py-3 rounded-xl bg-neon-cyan text-black font-bold disabled:opacity-50">
+                {submitting ? <><Loader2 size={16} className="animate-spin" /> Sending…</> : <><Send size={16} /> Looks Good — Generate &amp; Send</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
