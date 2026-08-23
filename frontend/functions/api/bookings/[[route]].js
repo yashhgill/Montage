@@ -69,6 +69,7 @@ export async function onRequest(context) {
     if (method === "GET" && head === "promo") return handlePromo(env, route[1]);
     if (method === "GET" && head === "test-fire") return handleTestFire(request, env);
     if (method === "POST" && head === "admin" && route[1] === "manual-invoice") return handleAdminManualInvoice(request, env);
+    if (method === "POST" && head === "admin" && route[1] === "preview-invoice") return handlePreviewInvoice(request, env);
     return json({ detail: "Not found" }, 404);
   } catch (err) {
     return json({ detail: err.message || "Server error" }, 500);
@@ -331,6 +332,52 @@ function checkAdmin(request, env) {
 // ─── Staff manual invoice: key in an order taken by phone/in-person, ────────
 // generate the same branded PDF invoice, email it, block the calendar date,
 // and save it into the same booking system as any online booking.
+// Generate the exact same PDF a real invoice would produce, but send nothing,
+// block no calendar date, and save nothing to D1. The invoice number shown is
+// only a preview (peeked, not consumed) so previewing never skips a real number.
+async function handlePreviewInvoice(request, env) {
+  if (!checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
+  let b;
+  try { b = await request.json(); } catch { return json({ detail: "Invalid request" }, 400); }
+
+  const billToName = String(b.bill_to_name || b.name || "Customer").trim();
+  const billToAddress = String(b.bill_to_address || "").split("\n").map((s) => s.trim()).filter(Boolean);
+  const term = String(b.term || "COD").trim();
+  const eventDate = String(b.event_date || "").trim();
+  const amountPaid = Math.max(0, Number(b.amount_paid) || 0);
+
+  const rawItems = Array.isArray(b.items) ? b.items : [];
+  const items = rawItems.map((it) => {
+    const rate = it.rate !== "" && it.rate != null ? Number(it.rate) : null;
+    const qty = it.qty !== "" && it.qty != null ? Number(it.qty) : null;
+    const amount = rate != null && qty != null ? rate * qty : (Number(it.amount) || 0);
+    return {
+      heading: String(it.heading || "").trim(),
+      lines: String(it.details || "").split("\n").map((l) => l.trim()),
+      rate, qty, amount,
+    };
+  }).filter((it) => it.heading || it.amount > 0);
+
+  if (items.length === 0) return json({ detail: "Add at least one line item to preview" }, 400);
+  const subtotal = items.reduce((s, it) => s + (Number(it.amount) || 0), 0);
+  if (subtotal <= 0) return json({ detail: "Total amount must be greater than zero" }, 400);
+  const amountDueNow = amountPaid > 0 ? Math.min(amountPaid, subtotal) : subtotal;
+
+  const previewNo = await peekNextInvoiceNumber(env);
+  const rec = {
+    invoice_no: previewNo + "  (PREVIEW — NOT YET ISSUED)",
+    bill_to_name: billToName, bill_to_address: billToAddress, term,
+    items, amount_due_now: amountDueNow, event_date: eventDate,
+  };
+
+  try {
+    const pdfBytes = await buildInvoicePdf(env, rec);
+    return json({ ok: true, pdf_base64: bytesToBase64(pdfBytes) });
+  } catch (e) {
+    return json({ detail: "Could not generate preview: " + e.message }, 500);
+  }
+}
+
 async function handleAdminManualInvoice(request, env) {
   if (!checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
   let b;
@@ -494,6 +541,21 @@ async function getNextInvoiceNumber(env) {
     const now = new Date();
     return "MEM" + now.getTime().toString().slice(-6) + "/" +
       String(now.getMonth() + 1).padStart(2, "0") + "/" + String(now.getFullYear()).slice(-2);
+  }
+}
+
+// Read-only peek at the next invoice number — used for previews so a preview
+// never consumes/skips a real number in the sequence.
+async function peekNextInvoiceNumber(env) {
+  try {
+    const row = await env.DB.prepare(`SELECT next_number FROM invoice_counter WHERE id = 1`).first();
+    const used = row?.next_number || 1;
+    const now = new Date();
+    const mm = String(now.getMonth() + 1).padStart(2, "0");
+    const yy = String(now.getFullYear()).slice(-2);
+    return "MEM" + String(used).padStart(3, "0") + "/" + mm + "/" + yy;
+  } catch (e) {
+    return "MEM???/??/??";
   }
 }
 
