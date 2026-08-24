@@ -363,10 +363,11 @@ async function handlePreviewInvoice(request, env) {
   if (subtotal <= 0) return json({ detail: "Total amount must be greater than zero" }, 400);
   const amountDueNow = amountPaid > 0 ? Math.min(amountPaid, subtotal) : subtotal;
 
+  const remarks = String(b.remarks || "").trim();
   const previewNo = await peekNextInvoiceNumber(env);
   const rec = {
     invoice_no: previewNo + "  (PREVIEW — NOT YET ISSUED)",
-    bill_to_name: billToName, bill_to_address: billToAddress, term,
+    bill_to_name: billToName, bill_to_address: billToAddress, term, remarks,
     items, amount_due_now: amountDueNow, event_date: eventDate,
   };
 
@@ -394,11 +395,13 @@ async function handleAdminManualInvoice(request, env) {
   const timeSlot = String(b.time_slot || "").trim() || "Full Day";
   const pax = String(b.pax || "").trim();
   const notes = String(b.notes || "").trim();
+  const remarks = String(b.remarks || "").trim();
   const amountPaid = Math.max(0, Number(b.amount_paid) || 0);
 
   if (!name || !phone || !email) return json({ detail: "Name, phone and email are required" }, 400);
   if (!billToName) return json({ detail: "Bill To name is required" }, 400);
-  if (!eventDate) return json({ detail: "Event date is required" }, 400);
+  // Event date is optional: many rental clients book a whole month and pick their
+  // own days, or don't need a specific calendar slot blocked at all.
 
   const rawItems = Array.isArray(b.items) ? b.items : [];
   const items = rawItems.map((it) => {
@@ -427,12 +430,14 @@ async function handleAdminManualInvoice(request, env) {
     package_name: summaryName, package_price: summaryPriceStr,
     venue, event_date: eventDate, time_slot: timeSlot, pax, notes,
     name, email, phone, deposit_rm: amountDueNow,
-    bill_to_name: billToName, bill_to_address: billToAddress, term,
+    bill_to_name: billToName, bill_to_address: billToAddress, term, remarks,
     items, amount_due_now: amountDueNow,
   };
 
   const result = { reference, calendar_event_id: "", email_sent: false, errors: [] };
-  try { result.calendar_event_id = await blockCalendar(env, rec); } catch (e) { result.errors.push("calendar: " + e.message); }
+  if (eventDate) {
+    try { result.calendar_event_id = await blockCalendar(env, rec); } catch (e) { result.errors.push("calendar: " + e.message); }
+  }
   try { result.email_sent = await sendEmail(env, rec); } catch (e) { result.errors.push("email: " + e.message); }
   try {
     await env.DB.prepare(
@@ -713,6 +718,16 @@ async function buildInvoicePdf(env, rec) {
 
   page.drawLine({ start: { x: M, y }, end: { x: width - M, y }, thickness: 1, color: rgb(0.75, 0.75, 0.75) });
   y -= 20;
+
+  if (rec.remarks && String(rec.remarks).trim()) {
+    page.drawText("REMARKS", { x: M, y, size: 8.5, font: bold, color: gold });
+    y -= 13;
+    for (const rawLine of String(rec.remarks).split("\n")) {
+      if (!rawLine.trim()) { y -= 6; continue; }
+      for (const wl of wrapText(rawLine, font, 9, width - 2 * M)) { page.drawText(wl, { x: M, y, size: 9, font, color: black }); y -= 12; }
+    }
+    y -= 10;
+  }
 
   const isPartial = balance > 0.01;
   if (isPartial) {
