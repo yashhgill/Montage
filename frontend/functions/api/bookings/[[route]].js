@@ -566,6 +566,31 @@ async function peekNextInvoiceNumber(env) {
   }
 }
 
+// Parses an item's free-text lines into blocks. A line starting with "- " or
+// "* " is a bullet under the current heading; any other non-blank line starts
+// a new numbered sub-heading. This lets staff type a flat description (no
+// dashes = plain paragraph, matches old behavior) or a structured breakdown
+// (dashes = numbered + bulleted sub-items, matches the real Montage invoice
+// format: e.g. "ALL IN CHARGES" as the unnumbered category, then 1/2/3 numbered
+// equipment pieces each with bulleted specs underneath).
+function parseItemBlocks(rawLines) {
+  const blocks = [];
+  let current = null;
+  for (const raw of rawLines || []) {
+    const line = String(raw || "").trim();
+    if (!line) { current = null; continue; }
+    if (line.startsWith("- ") || line.startsWith("* ")) {
+      const bulletText = line.slice(2).trim();
+      if (!current) { current = { heading: "", bullets: [] }; blocks.push(current); }
+      current.bullets.push(bulletText);
+    } else {
+      current = { heading: line, bullets: [] };
+      blocks.push(current);
+    }
+  }
+  return blocks;
+}
+
 function wrapText(text, font, size, maxWidth) {
   const words = String(text).split(" ");
   const lines = [];
@@ -703,19 +728,50 @@ async function buildInvoicePdf(env, rec) {
 
   items.forEach((item, idx) => {
     const rowTop = y;
-    page.drawText(String(idx + 1) + ".", { x: ITEM_X, y, size: 9.5, font, color: black });
+    const blocks = parseItemBlocks(item.lines);
+    const hasSubitems = blocks.some((b) => b.bullets.length > 0);
+
     let ly = y;
-    if (item.heading) { page.drawText(item.heading, { x: DESC_X, y: ly, size: 9.5, font: bold, color: black }); ly -= 13; }
-    for (const rawLine of item.lines || []) {
-      if (!rawLine || !rawLine.trim()) { ly -= 8; continue; }
-      for (const wl of wrapText(rawLine, font, 9, DESC_MAX)) { page.drawText(wl, { x: DESC_X, y: ly, size: 9, font, color: grey }); ly -= 12; }
+    if (!hasSubitems) {
+      page.drawText(String(idx + 1) + ".", { x: ITEM_X, y, size: 9.5, font, color: black });
     }
+    if (item.heading) {
+      page.drawText(item.heading, { x: DESC_X, y: ly, size: 9.5, font: bold, color: black });
+      ly -= 13;
+    }
+
+    if (hasSubitems) {
+      let subNum = 1;
+      for (const block of blocks) {
+        if (block.heading) {
+          page.drawText(subNum + ".", { x: ITEM_X, y: ly, size: 9.5, font: bold, color: black });
+          const headLines = wrapText(block.heading, bold, 9.5, DESC_MAX);
+          headLines.forEach((wl) => { page.drawText(wl, { x: DESC_X, y: ly, size: 9.5, font: bold, color: black }); ly -= 12; });
+          subNum++;
+        }
+        for (const bullet of block.bullets) {
+          const bulletLines = wrapText(bullet, font, 9, DESC_MAX - 14);
+          bulletLines.forEach((wl, i) => {
+            page.drawText((i === 0 ? "\u2022 " : "  ") + wl, { x: DESC_X + 4, y: ly, size: 9, font, color: grey });
+            ly -= 12;
+          });
+        }
+        ly -= 5;
+      }
+    } else {
+      blocks.forEach((block) => {
+        if (!block.heading) return;
+        for (const wl of wrapText(block.heading, font, 9, DESC_MAX)) { page.drawText(wl, { x: DESC_X, y: ly, size: 9, font, color: grey }); ly -= 12; }
+        ly -= 3;
+      });
+    }
+
     if (hasRateQty) {
       rightText(fmtMoney(item.rate), rowTop, RATE_X + 40, 9.5, font, black);
       rightText(String(item.qty), rowTop, QTY_X + 25, 9.5, font, black);
     }
     rightText(fmtMoney(item.amount), rowTop, AMOUNT_X, 9.5, font, black);
-    y = ly - 10;
+    y = ly - 8;
   });
 
   page.drawLine({ start: { x: M, y }, end: { x: width - M, y }, thickness: 1, color: rgb(0.75, 0.75, 0.75) });
