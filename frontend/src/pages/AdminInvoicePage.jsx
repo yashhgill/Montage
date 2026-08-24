@@ -215,9 +215,10 @@ export default function AdminInvoicePage() {
                 <input value={it.heading} onChange={(e) => setItem(idx, { heading: e.target.value })}
                   placeholder="Item heading, e.g. Racing Simulator / Bartending Service"
                   className="w-full bg-white/[0.04] border border-white/12 rounded-xl px-4 py-3 text-sm outline-none focus:border-neon-cyan mb-3" />
-                <textarea value={it.details} onChange={(e) => setItem(idx, { details: e.target.value })} rows={3}
-                  placeholder={"One line per detail:\nComes with Logitech G29, bucket seat, PS4 (1 unit)\n2 professional bartenders included"}
-                  className="w-full bg-white/[0.04] border border-white/12 rounded-xl px-4 py-3 text-sm outline-none focus:border-neon-cyan resize-none mb-3" />
+                <textarea value={it.details} onChange={(e) => setItem(idx, { details: e.target.value })} rows={5}
+                  placeholder={"For a numbered, bulleted breakdown (e.g. multiple equipment pieces):\nRacing Simulator\n- Derives with 50inch OLED TV.\n- Comes with Logitech G29, bucket seat, PS4 (1 unit)\n\nArcade Pro 32\n- Comes with 2500 games, 32inch screen\n\nOr for a simple single description, just type plain lines with no dashes."}
+                  className="w-full bg-white/[0.04] border border-white/12 rounded-xl px-4 py-3 text-sm outline-none focus:border-neon-cyan resize-none mb-1" />
+                <p className="text-[10px] text-white/35 mb-3">Start a line with <span className="text-white/55 font-mono">- </span> to make it a bullet under the line above — that line becomes a numbered sub-heading automatically. Leave a blank line between groups. No dashes = plain paragraph (old style).</p>
                 <div className="grid grid-cols-3 gap-3">
                   <Field label="Rate (RM)">
                     <input value={it.rate} onChange={(e) => setItem(idx, { rate: e.target.value })} type="number" min="0" placeholder="optional"
