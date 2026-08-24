@@ -396,6 +396,8 @@ async function handleAdminManualInvoice(request, env) {
   const pax = String(b.pax || "").trim();
   const notes = String(b.notes || "").trim();
   const remarks = String(b.remarks || "").trim();
+  const cc = String(b.cc || "").trim();
+  const bcc = String(b.bcc || "").trim();
   const amountPaid = Math.max(0, Number(b.amount_paid) || 0);
 
   if (!name || !phone || !email) return json({ detail: "Name, phone and email are required" }, 400);
@@ -431,7 +433,7 @@ async function handleAdminManualInvoice(request, env) {
     venue, event_date: eventDate, time_slot: timeSlot, pax, notes,
     name, email, phone, deposit_rm: amountDueNow,
     bill_to_name: billToName, bill_to_address: billToAddress, term, remarks,
-    items, amount_due_now: amountDueNow,
+    items, amount_due_now: amountDueNow, cc, bcc,
   };
 
   const result = { reference, calendar_event_id: "", email_sent: false, errors: [] };
@@ -653,8 +655,8 @@ async function buildInvoicePdf(env, rec) {
     if (imgRes.ok) {
       const bytes = new Uint8Array(await imgRes.arrayBuffer());
       const png = await pdf.embedPng(bytes);
-      const scaled = png.scaleToFit(64, 40);
-      page.drawImage(png, { x: M, y: y - 34, width: scaled.width, height: scaled.height });
+      const scaled = png.scaleToFit(92, 58);
+      page.drawImage(png, { x: M, y: y - 40, width: scaled.width, height: scaled.height });
     }
   } catch (e) { /* logo optional */ }
 
@@ -812,11 +814,19 @@ ${rec.promo_discount_rm ? `<p style="margin:0;color:#B8FF2D"><b>Expo code ${rec.
     pdfB64 = ""; // if PDF fails, still send the email without attachment
   }
 
+  const parseAddrList = (v) => {
+    if (Array.isArray(v)) return v.map((s) => String(s).trim()).filter(Boolean);
+    return String(v || "").split(/[,\n]/).map((s) => s.trim()).filter(Boolean);
+  };
+  const ccList = parseAddrList(rec.cc);
+  const bccList = Array.from(new Set([env.GMAIL_SENDER, ...parseAddrList(rec.bcc)].filter(Boolean)));
+
   const boundary = "montage_" + Math.random().toString(36).slice(2);
   let raw =
     `From: Montage Events <${env.GMAIL_SENDER}>\r\n` +
     `To: ${rec.email}\r\n` +
-    `Bcc: ${env.GMAIL_SENDER}\r\n` +
+    (ccList.length ? `Cc: ${ccList.join(", ")}\r\n` : "") +
+    `Bcc: ${bccList.join(", ")}\r\n` +
     `Subject: Montage Booking Confirmed - ${rec.reference}\r\n` +
     `MIME-Version: 1.0\r\n` +
     `Content-Type: multipart/mixed; boundary="${boundary}"\r\n\r\n` +
