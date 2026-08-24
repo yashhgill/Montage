@@ -16,6 +16,7 @@ export default function AdminInvoicePage() {
   const [form, setForm] = useState({
     name: "", phone: "", email: "",
     bill_to_name: "", bill_to_address: "", term: "Deposit",
+    cc: "", bcc: "",
     amount_paid: "", remarks: "",
     event_date: "", time_slot: DEFAULT_SLOTS[0], venue: "", pax: "", notes: "",
   });
@@ -95,7 +96,7 @@ export default function AdminInvoicePage() {
       setResult(data);
       if (!data.errors?.length) {
         setForm({ name: "", phone: "", email: "", bill_to_name: "", bill_to_address: "", term: clientType === "corporate" ? "COD" : "Deposit",
-          amount_paid: "", remarks: "", event_date: "", time_slot: slots[0], venue: "", pax: "", notes: "" });
+          cc: "", bcc: "", amount_paid: "", remarks: "", event_date: "", time_slot: slots[0], venue: "", pax: "", notes: "" });
         setItems([blankItem()]);
         if (previewUrlRef.current) { URL.revokeObjectURL(previewUrlRef.current); previewUrlRef.current = null; }
         setPreviewUrl(null);
@@ -155,6 +156,17 @@ export default function AdminInvoicePage() {
             <input value={form.email} onChange={(e) => set({ email: e.target.value })} type="email" placeholder="customer@email.com"
               className="w-full bg-white/[0.04] border border-white/12 rounded-xl px-4 py-3 text-sm outline-none focus:border-neon-cyan" />
           </Field>
+          <div className="grid sm:grid-cols-2 gap-4 mt-4">
+            <Field label="Cc (optional, comma-separated)">
+              <input value={form.cc} onChange={(e) => set({ cc: e.target.value })} placeholder="colleague@company.com, manager@company.com"
+                className="w-full bg-white/[0.04] border border-white/12 rounded-xl px-4 py-3 text-sm outline-none focus:border-neon-cyan" />
+            </Field>
+            <Field label="Bcc (optional, comma-separated)">
+              <input value={form.bcc} onChange={(e) => set({ bcc: e.target.value })} placeholder="accounts@montageevents.my"
+                className="w-full bg-white/[0.04] border border-white/12 rounded-xl px-4 py-3 text-sm outline-none focus:border-neon-cyan" />
+            </Field>
+          </div>
+          <p className="text-[11px] text-white/40 mt-1.5">jojo@montageevents.my is always Bcc’d automatically — add anyone else here.</p>
 
           <h2 className="text-xs uppercase tracking-[0.25em] font-bold text-neon-cyan mt-7 mb-3">Client Type</h2>
           <div className="grid grid-cols-2 gap-3">
