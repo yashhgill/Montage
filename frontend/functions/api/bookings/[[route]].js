@@ -372,8 +372,8 @@ async function handlePreviewInvoice(request, env) {
   };
 
   try {
-    const pdfBytes = await buildInvoicePdf(env, rec);
-    return json({ ok: true, pdf_base64: bytesToBase64(pdfBytes) });
+    const { bytes } = await buildInvoicePdf(env, rec);
+    return json({ ok: true, pdf_base64: bytesToBase64(bytes) });
   } catch (e) {
     return json({ detail: "Could not generate preview: " + e.message }, 500);
   }
@@ -440,7 +440,7 @@ async function handleAdminManualInvoice(request, env) {
   if (eventDate) {
     try { result.calendar_event_id = await blockCalendar(env, rec); } catch (e) { result.errors.push("calendar: " + e.message); }
   }
-  try { result.email_sent = await sendEmail(env, rec); } catch (e) { result.errors.push("email: " + e.message); }
+  try { result.email_sent = await sendInvoiceEmail(env, rec); } catch (e) { result.errors.push("email: " + e.message); }
   try {
     await env.DB.prepare(
       `INSERT INTO event_bookings
@@ -825,7 +825,7 @@ async function buildInvoicePdf(env, rec) {
   page.drawText("Bank :  RHB BANK BERHAD", { x: M, y, size: 8, font: bold, color: black }); y -= 12;
   page.drawText("ACC No. :  21242400046344", { x: M, y, size: 8, font: bold, color: black });
 
-  return await pdf.save();
+  return { bytes: await pdf.save(), invoiceNo };
 }
 function bytesToBase64(bytes) {
   let bin = "";
@@ -834,6 +834,82 @@ function bytesToBase64(bytes) {
     bin += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
   }
   return btoa(bin);
+}
+
+// Proper invoice cover email — used only by the staff manual-invoice tool.
+// Deliberately does NOT reuse the online-booking "Booking Confirmed / deposit
+// received" copy, since a manual invoice is a bill being sent to a client
+// (often corporate, COD terms), not a payment confirmation.
+async function sendInvoiceEmail(env, rec) {
+  if (!env.GOOGLE_REFRESH_TOKEN || !env.GMAIL_SENDER) return false;
+  const token = await getGoogleAccessToken(env);
+
+  let pdfBytes = null, invoiceNo = rec.reference;
+  try {
+    const built = await buildInvoicePdf(env, rec);
+    pdfBytes = built.bytes;
+    invoiceNo = built.invoiceNo;
+  } catch (e) { /* send without attachment if PDF generation fails */ }
+  const pdfB64 = pdfBytes ? bytesToBase64(pdfBytes) : "";
+
+  const total = (rec.items || []).reduce((s, it) => s + (Number(it.amount) || 0), 0);
+  const amountDue = rec.amount_due_now != null ? rec.amount_due_now : total;
+  const balance = Math.max(total - amountDue, 0);
+  const isPartial = balance > 0.01;
+  const itemSummary = (rec.items || []).map((it) => it.heading).filter(Boolean).join(", ") || rec.package_name || "your order";
+
+  const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#0A0A12;color:#fff;padding:32px;border-radius:12px">
+<h1 style="color:#00F0FF;margin:0 0 4px">Your Invoice from Montage</h1>
+<p style="color:#bbb;margin:0 0 24px">Hi ${rec.bill_to_name || rec.name}, please find your invoice attached.</p>
+<div style="background:#14141f;border-radius:10px;padding:20px;margin-bottom:20px">
+<p style="margin:0 0 10px"><b style="color:#FF2DD4">Invoice No:</b> ${invoiceNo}</p>
+<p style="margin:0 0 10px"><b>For:</b> ${itemSummary}</p>
+<p style="margin:0 0 10px"><b>Term:</b> ${rec.term || "COD"}</p>
+${rec.venue ? `<p style="margin:0 0 10px"><b>Venue:</b> ${rec.venue}</p>` : ""}
+${rec.event_date ? `<p style="margin:0 0 10px"><b>Date:</b> ${rec.event_date}${rec.time_slot ? " · " + rec.time_slot : ""}</p>` : ""}
+<p style="margin:0"><b>Amount Due${isPartial ? " Now" : ""}:</b> RM ${Number(amountDue).toLocaleString("en-MY", { minimumFractionDigits: 2 })}</p>
+${isPartial ? `<p style="margin:8px 0 0;color:#B8FF2D">Balance of RM ${balance.toLocaleString("en-MY", { minimumFractionDigits: 2 })} remains, to be settled as agreed.</p>` : ""}
+</div>
+<p style="color:#999;font-size:13px;margin:0 0 20px">The attached PDF has the full itemized breakdown. Payment should be made payable to Montage Event Management — Bank: RHB Bank Berhad, Acc No: 21242400046344.</p>
+<p style="color:#777;font-size:12px;margin-top:24px">Montage Event Management &middot; Shah Alam, Malaysia<br/>Reply to this email with any questions.</p>
+</div>`;
+
+  const parseAddrList = (v) => {
+    if (Array.isArray(v)) return v.map((s) => String(s).trim()).filter(Boolean);
+    return String(v || "").split(/[,\n]/).map((s) => s.trim()).filter(Boolean);
+  };
+  const ccList = parseAddrList(rec.cc);
+  const bccList = Array.from(new Set([env.GMAIL_SENDER, ...parseAddrList(rec.bcc)].filter(Boolean)));
+
+  const boundary = "montage_" + Math.random().toString(36).slice(2);
+  let raw =
+    `From: Montage Events <${env.GMAIL_SENDER}>\r\n` +
+    `To: ${rec.email}\r\n` +
+    (ccList.length ? `Cc: ${ccList.join(", ")}\r\n` : "") +
+    `Bcc: ${bccList.join(", ")}\r\n` +
+    `Subject: Invoice ${invoiceNo} from Montage Event Management\r\n` +
+    `MIME-Version: 1.0\r\n` +
+    `Content-Type: multipart/mixed; boundary="${boundary}"\r\n\r\n` +
+    `--${boundary}\r\n` +
+    `Content-Type: text/html; charset=UTF-8\r\n\r\n` +
+    html + `\r\n`;
+
+  if (pdfB64) {
+    raw +=
+      `--${boundary}\r\n` +
+      `Content-Type: application/pdf; name="${invoiceNo.replace(/[^a-zA-Z0-9]/g, "-")}.pdf"\r\n` +
+      `Content-Disposition: attachment; filename="${invoiceNo.replace(/[^a-zA-Z0-9]/g, "-")}.pdf"\r\n` +
+      `Content-Transfer-Encoding: base64\r\n\r\n` +
+      pdfB64.replace(/(.{76})/g, "$1\r\n") + `\r\n`;
+  }
+  raw += `--${boundary}--`;
+
+  const res = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {
+    method: "POST",
+    headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+    body: JSON.stringify({ raw: b64urlFromString(raw) }),
+  });
+  return res.ok;
 }
 
 async function sendEmail(env, rec) {
@@ -864,8 +940,8 @@ ${rec.promo_discount_rm ? `<p style="margin:0;color:#B8FF2D"><b>Expo code ${rec.
   // Build the invoice PDF and attach it
   let pdfB64 = "";
   try {
-    const pdfBytes = await buildInvoicePdf(env, rec);
-    pdfB64 = bytesToBase64(pdfBytes);
+    const { bytes } = await buildInvoicePdf(env, rec);
+    pdfB64 = bytesToBase64(bytes);
   } catch (e) {
     pdfB64 = ""; // if PDF fails, still send the email without attachment
   }
