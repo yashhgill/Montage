@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /photobooth/p/
+Disallow: /bookings/success
+
+Sitemap: https://montageevents.my/sitemap.xml
