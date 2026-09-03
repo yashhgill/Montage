@@ -591,7 +591,22 @@ function parseItemBlocks(rawLines) {
   return blocks;
 }
 
+// Strip characters that WinAnsi (Helvetica) can't encode so the PDF never
+// crashes on invisible unicode (word-joiners, smart quotes, etc.) pasted
+// from WhatsApp/Word. Keeps the visible meaning intact.
+function sanitizePdfText(str) {
+  return String(str || "")
+    .replace(/[\u2060\u200B\u200C\u200D\uFEFF\u00AD]/g, "")  // invisible/zero-width
+    .replace(/[\u2018\u2019]/g, "'")     // curly single quotes
+    .replace(/[\u201C\u201D]/g, '"')     // curly double quotes
+    .replace(/\u2013/g, "-")              // en dash
+    .replace(/\u2014/g, " - ")            // em dash
+    .replace(/\u2026/g, "...")            // ellipsis
+    .replace(/[^\x00-\xFF]/g, "");       // drop anything else outside Latin-1
+}
+
 function wrapText(text, font, size, maxWidth) {
+  text = sanitizePdfText(text);
   const words = String(text).split(" ");
   const lines = [];
   let cur = "";
@@ -699,14 +714,14 @@ async function buildInvoicePdf(env, rec) {
   y -= 40;
   const billToTop = y;
   page.drawText("BILL TO:", { x: M, y, size: 9, font: bold, color: black });
-  page.drawText(billToName, { x: M + 54, y, size: 10, font: bold, color: black });
+  page.drawText(sanitizePdfText(billToName), { x: M + 54, y, size: 10, font: bold, color: black });
   let addrY = y - 14;
-  for (const line of billToAddress) { page.drawText(line, { x: M, y: addrY, size: 9, font, color: grey }); addrY -= 12; }
+  for (const line of billToAddress) { page.drawText(sanitizePdfText(line), { x: M, y: addrY, size: 9, font, color: grey }); addrY -= 12; }
 
   let metaY = billToTop;
-  rightText(`INVOICE NO :  ${invoiceNo}`, metaY, width - M, 9.5, bold, black); metaY -= 14;
-  rightText(`DATE :  ${dateStr}`, metaY, width - M, 9.5, font, black); metaY -= 14;
-  rightText(`TERM :  ${term}`, metaY, width - M, 9.5, font, black);
+  rightText(sanitizePdfText(`INVOICE NO :  ${invoiceNo}`), metaY, width - M, 9.5, bold, black); metaY -= 14;
+  rightText(sanitizePdfText(`DATE :  ${dateStr}`), metaY, width - M, 9.5, font, black); metaY -= 14;
+  rightText(sanitizePdfText(`TERM :  ${term}`), metaY, width - M, 9.5, font, black);
 
   y = Math.min(addrY, metaY) - 16;
   page.drawLine({ start: { x: M, y }, end: { x: width - M, y }, thickness: 1, color: rgb(0.75, 0.75, 0.75) });
@@ -736,7 +751,7 @@ async function buildInvoicePdf(env, rec) {
       page.drawText(String(idx + 1) + ".", { x: ITEM_X, y, size: 9.5, font, color: black });
     }
     if (item.heading) {
-      page.drawText(item.heading, { x: DESC_X, y: ly, size: 9.5, font: bold, color: black });
+      page.drawText(sanitizePdfText(item.heading), { x: DESC_X, y: ly, size: 9.5, font: bold, color: black });
       ly -= 13;
     }
 
@@ -745,7 +760,7 @@ async function buildInvoicePdf(env, rec) {
       for (const block of blocks) {
         if (block.heading) {
           page.drawText(subNum + ".", { x: ITEM_X, y: ly, size: 9.5, font: bold, color: black });
-          const headLines = wrapText(block.heading, bold, 9.5, DESC_MAX);
+          const headLines = wrapText(sanitizePdfText(block.heading), bold, 9.5, DESC_MAX);
           headLines.forEach((wl) => { page.drawText(wl, { x: DESC_X, y: ly, size: 9.5, font: bold, color: black }); ly -= 12; });
           subNum++;
         }
@@ -780,7 +795,7 @@ async function buildInvoicePdf(env, rec) {
   if (rec.remarks && String(rec.remarks).trim()) {
     page.drawText("REMARKS", { x: M, y, size: 8.5, font: bold, color: gold });
     y -= 13;
-    for (const rawLine of String(rec.remarks).split("\n")) {
+    for (const rawLine of sanitizePdfText(String(rec.remarks)).split("\n")) {
       if (!rawLine.trim()) { y -= 6; continue; }
       for (const wl of wrapText(rawLine, font, 9, width - 2 * M)) { page.drawText(wl, { x: M, y, size: 9, font, color: black }); y -= 12; }
     }
