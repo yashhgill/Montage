@@ -711,9 +711,9 @@ async function buildInvoicePdf(env, rec) {
   });
 
   // Choose the largest line spacing that still fits, floored at 8pt spacing / 7.5pt font
-  const LINE_SPACINGS = [12, 11, 10, 9, 8];
-  const FONT_SIZES    = [9.5, 8.5, 8, 7.5, 7];
-  let LS = 12, FS = 9.5, FS_SM = 9; // default: normal size
+  const LINE_SPACINGS = [11, 10, 9, 8.5, 8];
+  const FONT_SIZES    = [9, 8.5, 8, 7.5, 7];
+  let LS = 11, FS = 9, FS_SM = 8.5; // tighter default — still very readable
   for (let i = 0; i < LINE_SPACINGS.length; i++) {
     const needed = estimatedItemLines * LINE_SPACINGS[i];
     if (needed <= AVAIL) { LS = LINE_SPACINGS[i]; FS = FONT_SIZES[i]; FS_SM = Math.max(7, FONT_SIZES[i] - 0.5); break; }
@@ -732,7 +732,7 @@ async function buildInvoicePdf(env, rec) {
     page.drawLine({ start: { x: x0, y }, end: { x: x1, y }, thickness: thick, color: col });
 
   // ─── HEADER ──────────────────────────────────────────────────────────
-  let y = H - 50;
+  let y = H - 42;
 
   // Logo
   try {
@@ -750,25 +750,25 @@ async function buildInvoicePdf(env, rec) {
   centerText("NO. 20, JALAN NAGASARI 36/9A, DESA ALAM, SEKSYEN 36,", y - 14, 8, font, grey);
   centerText("40470 SHAH ALAM, SELANGOR",                              y - 24, 8, font, grey);
   centerText("TEL: 013-344 6521   /   EMAIL: montage.eventmanagement@gmail.com", y - 34, 8, font, grey);
-  y -= 50;
-  hline(y); y -= 28;
-  centerText("INVOICE", y, 22, bold, black); y -= 36;
+  y -= 44;
+  hline(y); y -= 20;
+  centerText("INVOICE", y, 20, bold, black); y -= 28;
 
   // Bill To + meta
   const billToTop = y;
   page.drawText("BILL TO:", { x: M, y, size: 9, font: bold, color: black });
   page.drawText(sanitizePdfText(billToName), { x: M + 52, y, size: 9.5, font: bold, color: black });
-  let addrY = y - 12;
+  let addrY = y - 10;
   for (const line of billToAddress) {
     page.drawText(sanitizePdfText(line), { x: M, y: addrY, size: 8.5, font, color: grey });
-    addrY -= 11;
+    addrY -= 10;
   }
   let metaY = billToTop;
-  rightText(sanitizePdfText(`INVOICE NO :  ${invoiceNo}`), metaY, W - M, 9, bold, black); metaY -= 13;
-  rightText(sanitizePdfText(`DATE :  ${dateStr}`),         metaY, W - M, 9, font, black); metaY -= 13;
+  rightText(sanitizePdfText(`INVOICE NO :  ${invoiceNo}`), metaY, W - M, 9, bold, black); metaY -= 12;
+  rightText(sanitizePdfText(`DATE :  ${dateStr}`),         metaY, W - M, 9, font, black); metaY -= 12;
   rightText(sanitizePdfText(`TERM :  ${term}`),            metaY, W - M, 9, font, black);
-  y = Math.min(addrY, metaY) - 12;
-  hline(y); y -= 18;
+  y = Math.min(addrY, metaY) - 8;
+  hline(y); y -= 13;
 
   // Table header
   page.drawText("ITEM",        { x: M,      y, size: 8.5, font: bold, color: black });
@@ -843,7 +843,7 @@ async function buildInvoicePdf(env, rec) {
     y = ly - Math.round(LS * 0.6);
   });
 
-  hline(y); y -= 16;
+  hline(y); y -= 12;
 
   // ─── Remarks ─────────────────────────────────────────────────────────
   if (rec.remarks && String(rec.remarks).trim()) {
@@ -868,7 +868,7 @@ async function buildInvoicePdf(env, rec) {
   }
   rightText(isPartial ? "AMOUNT DUE NOW (MYR):" : "TOTAL (MYR):", y, AMOUNT_X - 88, 10.5, bold, black);
   rightText(fmtMoney(amountDueNow), y, AMOUNT_X, 11.5, bold, black); y -= 7;
-  hline(y, 1.2, black); y -= 18;
+  hline(y, 1.2, black); y -= 13;
 
   const wordsLabel = "RINGGIT MALAYSIA: ";
   page.drawText(wordsLabel, { x: M, y, size: 8.5, font, color: black });
@@ -886,10 +886,10 @@ async function buildInvoicePdf(env, rec) {
   }
 
   // ─── Footer ───────────────────────────────────────────────────────────
-  y = wy - 18;
-  page.drawText("This is a computer generated invoice and no signature is required.", { x: M, y, size: 7.5, font, color: grey }); y -= 10;
-  page.drawText("All payment should be made payable to MONTAGE EVENT MANAGEMENT",   { x: M, y, size: 7.5, font, color: grey }); y -= 10;
-  page.drawText("Bank :  RHB BANK BERHAD",   { x: M, y, size: 7.5, font: bold, color: black }); y -= 10;
+  y = wy - 11;
+  page.drawText("This is a computer generated invoice and no signature is required.", { x: M, y, size: 7.5, font, color: grey }); y -= 9;
+  page.drawText("All payment should be made payable to MONTAGE EVENT MANAGEMENT",   { x: M, y, size: 7.5, font, color: grey }); y -= 9;
+  page.drawText("Bank :  RHB BANK BERHAD",   { x: M, y, size: 7.5, font: bold, color: black }); y -= 9;
   page.drawText("ACC No. :  21242400046344",  { x: M, y, size: 7.5, font: bold, color: black });
 
   return { bytes: await pdf.save(), invoiceNo };
