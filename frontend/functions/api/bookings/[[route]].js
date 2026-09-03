@@ -630,128 +630,154 @@ function fmtMoney(n) {
 //     invoice is built automatically from the booking's package/deposit fields.
 async function buildInvoicePdf(env, rec) {
   const pdf = await PDFDocument.create();
-  const page = pdf.addPage([595, 842]);
-  const { width } = page.getSize();
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
 
   const black = rgb(0.08, 0.08, 0.1);
-  const grey = rgb(0.35, 0.35, 0.38);
-  const gold = rgb(0.72, 0.58, 0.18);
-  const M = 48;
+  const grey  = rgb(0.35, 0.35, 0.38);
+  const gold  = rgb(0.72, 0.58, 0.18);
+  const M     = 48;
+  const PAGE_W = 595;
+  const PAGE_H = 842;
+  const FOOTER_RESERVE = 110; // space kept for total/words/bank details
+  const BOTTOM_MARGIN  = 46;  // absolute floor before we add a new page
 
-  const centerText = (text, y, size, f = font, color = black) => {
-    const w = f.widthOfTextAtSize(text, size);
-    page.drawText(text, { x: (width - w) / 2, y, size, font: f, color });
+  // ─── Multi-page helpers ───────────────────────────────────────────────
+  let pages = [];
+  let curPage = null;
+  let y = 0;
+
+  const addPage = () => {
+    curPage = pdf.addPage([PAGE_W, PAGE_H]);
+    pages.push(curPage);
+    y = PAGE_H - 50;
   };
-  const rightText = (text, y, xRight, size, f = font, color = black) => {
-    const w = f.widthOfTextAtSize(text, size);
-    page.drawText(text, { x: xRight - w, y, size, font: f, color });
+  addPage(); // first page
+
+  // Returns true if there is room for `needed` points on the current page
+  // (accounting for footer reserve on the last section).
+  const hasRoom = (needed, reserveFooter = false) =>
+    y - needed >= (reserveFooter ? FOOTER_RESERVE : BOTTOM_MARGIN);
+
+  // Ensure at least `needed` pts are available; add page if not.
+  const ensureRoom = (needed, reserveFooter = false) => {
+    if (!hasRoom(needed, reserveFooter)) addPage();
   };
 
-  // ─── Normalize input into a unified invoice shape ───
+  const centerText = (text, yPos, size, f = font, color = black) => {
+    const w = f.widthOfTextAtSize(text, size);
+    curPage.drawText(text, { x: (PAGE_W - w) / 2, y: yPos, size, font: f, color });
+  };
+  const rightText = (text, yPos, xRight, size, f = font, color = black) => {
+    const w = f.widthOfTextAtSize(text, size);
+    curPage.drawText(text, { x: xRight - w, y: yPos, size, font: f, color });
+  };
+  const drawLine = (yPos, thick = 1, color = rgb(0.75, 0.75, 0.75), x0 = M, x1 = PAGE_W - M) =>
+    curPage.drawLine({ start: { x: x0, y: yPos }, end: { x: x1, y: yPos }, thickness: thick, color });
+
+  // ─── Normalize input ──────────────────────────────────────────────────
   let billToName, billToAddress, term, items, subtotal, amountDueNow, balance;
   if (rec.items) {
-    billToName = rec.bill_to_name || rec.name || "";
+    billToName    = rec.bill_to_name || rec.name || "";
     billToAddress = rec.bill_to_address || [];
-    term = rec.term || "COD";
-    items = rec.items;
-    subtotal = items.reduce((s, it) => s + (Number(it.amount) || 0), 0);
-    amountDueNow = rec.amount_due_now != null ? rec.amount_due_now : subtotal;
-    balance = rec.balance != null ? rec.balance : Math.max(subtotal - amountDueNow, 0);
+    term          = rec.term || "COD";
+    items         = rec.items;
+    subtotal      = items.reduce((s, it) => s + (Number(it.amount) || 0), 0);
+    amountDueNow  = rec.amount_due_now != null ? rec.amount_due_now : subtotal;
+    balance       = rec.balance != null ? rec.balance : Math.max(subtotal - amountDueNow, 0);
   } else {
-    const total = parsePrice(rec.package_price);
-    const deposit = rec.deposit_rm != null ? rec.deposit_rm : depositRm(env);
+    const total        = parsePrice(rec.package_price);
+    const deposit      = rec.deposit_rm != null ? rec.deposit_rm : depositRm(env);
     const promoDiscount = rec.promo_discount_rm || 0;
-    billToName = rec.name || "";
+    billToName    = rec.name || "";
     billToAddress = [rec.phone ? "Phone: " + rec.phone : "", rec.email ? "Email: " + rec.email : ""].filter(Boolean);
-    term = "Deposit";
-    items = [{
-      heading: rec.package_name,
-      lines: [
-        rec.venue ? "Venue: " + rec.venue : "",
-        (rec.event_date || rec.time_slot) ? "Event date: " + (rec.event_date || "") + (rec.time_slot ? " \u00b7 " + rec.time_slot : "") : "",
-        rec.pax ? "Pax: " + rec.pax : "",
-        rec.notes ? "Notes: " + rec.notes : "",
-      ].filter(Boolean),
-      rate: null, qty: null, amount: total,
-    }];
-    subtotal = total;
-    amountDueNow = deposit;
-    // Same formula the deposit system has always used: deposit is already promo-reduced,
-    // so subtracting promoDiscount again here correctly nets it out of the balance too.
-    balance = Math.max(total - promoDiscount - deposit, 0);
+    term          = "Deposit";
+    items         = [{ heading: rec.package_name, lines: [
+      rec.venue     ? "Venue: " + rec.venue : "",
+      (rec.event_date || rec.time_slot) ? "Event date: " + (rec.event_date || "") + (rec.time_slot ? " \u00b7 " + rec.time_slot : "") : "",
+      rec.pax       ? "Pax: " + rec.pax : "",
+      rec.notes     ? "Notes: " + rec.notes : "",
+    ].filter(Boolean), rate: null, qty: null, amount: total }];
+    subtotal      = total;
+    amountDueNow  = deposit;
+    balance       = Math.max(total - promoDiscount - deposit, 0);
   }
-
   const invoiceNo = rec.invoice_no || await getNextInvoiceNumber(env);
-  const dateStr = rec.date || new Date().toLocaleDateString("en-GB");
+  const dateStr   = rec.date || new Date().toLocaleDateString("en-GB");
 
-  let y = 842 - 50;
-
-  // Logo (fetch from R2)
+  // ─── HEADER (logo + company + INVOICE title + Bill To / meta) ─────────
+  // Logo
   try {
     const logoUrl = "https://pub-b849c3b830534eeea60b6844defeeb9f.r2.dev/images/montage-gold-logo.png";
     const imgRes = await fetch(logoUrl);
     if (imgRes.ok) {
       const bytes = new Uint8Array(await imgRes.arrayBuffer());
-      const png = await pdf.embedPng(bytes);
+      const png   = await pdf.embedPng(bytes);
       const scaled = png.scaleToFit(92, 58);
-      page.drawImage(png, { x: M, y: y - 40, width: scaled.width, height: scaled.height });
+      curPage.drawImage(png, { x: M, y: y - 40, width: scaled.width, height: scaled.height });
     }
   } catch (e) { /* logo optional */ }
 
-  centerText("MONTAGE EVENT MANAGEMENT (MA0293072-D)", y - 2, 12, bold, black);
+  centerText("MONTAGE EVENT MANAGEMENT (MA0293072-D)", y - 2,  12, bold, black);
   centerText("NO. 20, JALAN NAGASARI 36/9A, DESA ALAM, SEKSYEN 36,", y - 16, 8.5, font, grey);
-  centerText("40470 SHAH ALAM, SELANGOR", y - 27, 8.5, font, grey);
+  centerText("40470 SHAH ALAM, SELANGOR",                              y - 27, 8.5, font, grey);
   centerText("TEL: 013-344 6521   /   EMAIL: montage.eventmanagement@gmail.com", y - 38, 8.5, font, grey);
-
   y -= 58;
-  page.drawLine({ start: { x: M, y }, end: { x: width - M, y }, thickness: 1, color: rgb(0.75, 0.75, 0.75) });
+  drawLine(y); y -= 34;
+  centerText("INVOICE", y, 24, bold, black); y -= 40;
 
-  y -= 34;
-  centerText("INVOICE", y, 24, bold, black);
-
-  y -= 40;
+  // Bill To + Invoice meta
   const billToTop = y;
-  page.drawText("BILL TO:", { x: M, y, size: 9, font: bold, color: black });
-  page.drawText(sanitizePdfText(billToName), { x: M + 54, y, size: 10, font: bold, color: black });
+  curPage.drawText("BILL TO:", { x: M, y, size: 9, font: bold, color: black });
+  curPage.drawText(sanitizePdfText(billToName), { x: M + 54, y, size: 10, font: bold, color: black });
   let addrY = y - 14;
-  for (const line of billToAddress) { page.drawText(sanitizePdfText(line), { x: M, y: addrY, size: 9, font, color: grey }); addrY -= 12; }
-
+  for (const line of billToAddress) {
+    curPage.drawText(sanitizePdfText(line), { x: M, y: addrY, size: 9, font, color: grey });
+    addrY -= 12;
+  }
   let metaY = billToTop;
-  rightText(sanitizePdfText(`INVOICE NO :  ${invoiceNo}`), metaY, width - M, 9.5, bold, black); metaY -= 14;
-  rightText(sanitizePdfText(`DATE :  ${dateStr}`), metaY, width - M, 9.5, font, black); metaY -= 14;
-  rightText(sanitizePdfText(`TERM :  ${term}`), metaY, width - M, 9.5, font, black);
-
+  rightText(sanitizePdfText(`INVOICE NO :  ${invoiceNo}`), metaY, PAGE_W - M, 9.5, bold, black); metaY -= 14;
+  rightText(sanitizePdfText(`DATE :  ${dateStr}`),         metaY, PAGE_W - M, 9.5, font, black); metaY -= 14;
+  rightText(sanitizePdfText(`TERM :  ${term}`),            metaY, PAGE_W - M, 9.5, font, black);
   y = Math.min(addrY, metaY) - 16;
-  page.drawLine({ start: { x: M, y }, end: { x: width - M, y }, thickness: 1, color: rgb(0.75, 0.75, 0.75) });
+  drawLine(y);
 
+  // ─── Table header ────────────────────────────────────────────────────
   const hasRateQty = items.some((it) => it.rate != null && it.qty != null);
-  const ITEM_X = M, DESC_X = M + 28, AMOUNT_X = width - M;
-  const RATE_X = hasRateQty ? width - M - 180 : null;
-  const QTY_X = hasRateQty ? width - M - 100 : null;
+  const ITEM_X   = M;
+  const DESC_X   = M + 28;
+  const AMOUNT_X = PAGE_W - M;
+  const RATE_X   = hasRateQty ? PAGE_W - M - 180 : null;
+  const QTY_X    = hasRateQty ? PAGE_W - M - 100 : null;
   const DESC_MAX = (hasRateQty ? RATE_X - 15 : AMOUNT_X - 90) - DESC_X;
 
   y -= 20;
-  page.drawText("ITEM", { x: ITEM_X, y, size: 9, font: bold, color: black });
-  page.drawText("DESCRIPTION", { x: DESC_X, y, size: 9, font: bold, color: black });
-  if (hasRateQty) { rightText("RATE", y, RATE_X + 40, 9, bold, black); rightText("QTY", y, QTY_X + 25, 9, bold, black); }
+  curPage.drawText("ITEM",        { x: ITEM_X, y, size: 9, font: bold, color: black });
+  curPage.drawText("DESCRIPTION", { x: DESC_X, y, size: 9, font: bold, color: black });
+  if (hasRateQty) {
+    rightText("RATE",        y, RATE_X + 40, 9, bold, black);
+    rightText("QTY",         y, QTY_X  + 25, 9, bold, black);
+  }
   rightText("AMOUNT (RM)", y, AMOUNT_X, 9, bold, black);
   y -= 6;
-  page.drawLine({ start: { x: M, y }, end: { x: width - M, y }, thickness: 1.2, color: black });
-  y -= 16;
+  drawLine(y, 1.2, black); y -= 16;
 
+  // ─── Items ───────────────────────────────────────────────────────────
   items.forEach((item, idx) => {
-    const rowTop = y;
-    const blocks = parseItemBlocks(item.lines);
+    const blocks      = parseItemBlocks(item.lines);
     const hasSubitems = blocks.some((b) => b.bullets.length > 0);
+    const rowTop      = y;
 
-    let ly = y;
+    // Item number (only when flat/no sub-items)
     if (!hasSubitems) {
-      page.drawText(String(idx + 1) + ".", { x: ITEM_X, y, size: 9.5, font, color: black });
+      curPage.drawText(String(idx + 1) + ".", { x: ITEM_X, y, size: 9.5, font, color: black });
     }
+
+    // Item heading (the "ALL IN CHARGES" or package name label)
+    let ly = y;
     if (item.heading) {
-      page.drawText(sanitizePdfText(item.heading), { x: DESC_X, y: ly, size: 9.5, font: bold, color: black });
+      ensureRoom(13);
+      curPage.drawText(sanitizePdfText(item.heading), { x: DESC_X, y: ly, size: 9.5, font: bold, color: black });
       ly -= 13;
     }
 
@@ -759,89 +785,122 @@ async function buildInvoicePdf(env, rec) {
       let subNum = 1;
       for (const block of blocks) {
         if (block.heading) {
-          page.drawText(subNum + ".", { x: ITEM_X, y: ly, size: 9.5, font: bold, color: black });
-          const headLines = wrapText(sanitizePdfText(block.heading), bold, 9.5, DESC_MAX);
-          headLines.forEach((wl) => { page.drawText(wl, { x: DESC_X, y: ly, size: 9.5, font: bold, color: black }); ly -= 12; });
-          subNum++;
+          // sub-heading: bold, with number prefix only when there are also bullets (structured)
+          // detect: if this block has bullets it's a "1. Racing Simulator" style
+          // if no bullets it's a bare bold label (like "RACING SIMULATOR")
+          if (block.bullets.length > 0) {
+            ensureRoom(14);
+            curPage.drawText(subNum + ".", { x: ITEM_X, y: ly, size: 9.5, font: bold, color: black });
+            const headLines = wrapText(sanitizePdfText(block.heading), bold, 9.5, DESC_MAX);
+            headLines.forEach((wl) => {
+              ensureRoom(13);
+              curPage.drawText(wl, { x: DESC_X, y: ly, size: 9.5, font: bold, color: black });
+              ly -= 12;
+            });
+            subNum++;
+          } else {
+            // bare bold sub-heading with no bullets — still bold but no number
+            ensureRoom(13);
+            const headLines = wrapText(sanitizePdfText(block.heading), bold, 9.5, DESC_MAX);
+            headLines.forEach((wl) => {
+              ensureRoom(13);
+              curPage.drawText(wl, { x: DESC_X, y: ly, size: 9.5, font: bold, color: black });
+              ly -= 12;
+            });
+          }
         }
         for (const bullet of block.bullets) {
           const bulletLines = wrapText(bullet, font, 9, DESC_MAX - 14);
           bulletLines.forEach((wl, i) => {
-            page.drawText((i === 0 ? "\u2022 " : "  ") + wl, { x: DESC_X + 4, y: ly, size: 9, font, color: grey });
+            ensureRoom(13);
+            curPage.drawText((i === 0 ? "\u2022 " : "  ") + wl, { x: DESC_X + 4, y: ly, size: 9, font, color: grey });
             ly -= 12;
           });
         }
-        ly -= 5;
+        ly -= 4;
       }
     } else {
       blocks.forEach((block) => {
         if (!block.heading) return;
-        for (const wl of wrapText(block.heading, font, 9, DESC_MAX)) { page.drawText(wl, { x: DESC_X, y: ly, size: 9, font, color: grey }); ly -= 12; }
+        for (const wl of wrapText(block.heading, font, 9, DESC_MAX)) {
+          ensureRoom(13);
+          curPage.drawText(wl, { x: DESC_X, y: ly, size: 9, font, color: grey });
+          ly -= 12;
+        }
         ly -= 3;
       });
     }
 
     if (hasRateQty) {
       rightText(fmtMoney(item.rate), rowTop, RATE_X + 40, 9.5, font, black);
-      rightText(String(item.qty), rowTop, QTY_X + 25, 9.5, font, black);
+      rightText(String(item.qty),    rowTop, QTY_X  + 25, 9.5, font, black);
     }
     rightText(fmtMoney(item.amount), rowTop, AMOUNT_X, 9.5, font, black);
     y = ly - 8;
   });
 
-  page.drawLine({ start: { x: M, y }, end: { x: width - M, y }, thickness: 1, color: rgb(0.75, 0.75, 0.75) });
-  y -= 20;
+  // ─── Separator after items ────────────────────────────────────────────
+  ensureRoom(20);
+  drawLine(y); y -= 20;
 
+  // ─── Remarks ─────────────────────────────────────────────────────────
   if (rec.remarks && String(rec.remarks).trim()) {
-    page.drawText("REMARKS", { x: M, y, size: 8.5, font: bold, color: gold });
+    ensureRoom(13);
+    curPage.drawText("REMARKS", { x: M, y, size: 8.5, font: bold, color: gold });
     y -= 13;
     for (const rawLine of sanitizePdfText(String(rec.remarks)).split("\n")) {
       if (!rawLine.trim()) { y -= 6; continue; }
-      for (const wl of wrapText(rawLine, font, 9, width - 2 * M)) { page.drawText(wl, { x: M, y, size: 9, font, color: black }); y -= 12; }
+      for (const wl of wrapText(rawLine, font, 9, PAGE_W - 2 * M)) {
+        ensureRoom(13);
+        curPage.drawText(wl, { x: M, y, size: 9, font, color: black });
+        y -= 12;
+      }
     }
     y -= 10;
   }
 
+  // ─── Totals / footer — always on the same page section ───────────────
+  // If there's not enough room for the whole footer, push to a fresh page.
+  const footerHeight = (balance > 0.01 ? 80 : 50) + 60;
+  ensureRoom(footerHeight, false);
+
   const isPartial = balance > 0.01;
   if (isPartial) {
-    rightText("Subtotal (RM)", y, AMOUNT_X - 110, 9, font, grey);
-    rightText(fmtMoney(subtotal), y, AMOUNT_X, 9, font, black);
-    y -= 14;
+    rightText("Subtotal (RM)",                  y, AMOUNT_X - 110, 9, font, grey);
+    rightText(fmtMoney(subtotal),               y, AMOUNT_X,       9, font, black); y -= 14;
     rightText("Less: Deposit / Amount Paid (RM)", y, AMOUNT_X - 110, 9, font, grey);
-    rightText("- " + fmtMoney(amountDueNow), y, AMOUNT_X, 9, font, black);
-    y -= 8;
-    page.drawLine({ start: { x: width - M - 220, y }, end: { x: width - M, y }, thickness: 0.7, color: rgb(0.8, 0.8, 0.8) });
-    y -= 16;
+    rightText("- " + fmtMoney(amountDueNow),    y, AMOUNT_X,       9, font, black); y -= 8;
+    drawLine(y, 0.7, rgb(0.8, 0.8, 0.8), PAGE_W - M - 220, PAGE_W - M); y -= 16;
   }
   rightText(isPartial ? "AMOUNT DUE NOW (MYR):" : "TOTAL (MYR):", y, AMOUNT_X - 90, 11, bold, black);
-  rightText(fmtMoney(amountDueNow), y, AMOUNT_X, 12, bold, black);
-  y -= 8;
-  page.drawLine({ start: { x: M, y }, end: { x: width - M, y }, thickness: 1.2, color: black });
+  rightText(fmtMoney(amountDueNow), y, AMOUNT_X, 12, bold, black); y -= 8;
+  drawLine(y, 1.2, black); y -= 22;
 
-  y -= 22;
   const wordsLabel = "RINGGIT MALAYSIA: ";
-  page.drawText(wordsLabel, { x: M, y, size: 9, font, color: black });
+  curPage.drawText(wordsLabel, { x: M, y, size: 9, font, color: black });
   const wordsX = M + font.widthOfTextAtSize(wordsLabel, 9);
   let wy = y;
-  wrapText(ringgitWords(amountDueNow), bold, 9, width - M - wordsX).forEach((wl, i) => {
-    page.drawText(wl, { x: i === 0 ? wordsX : M, y: wy, size: 9, font: bold, color: black });
+  wrapText(ringgitWords(amountDueNow), bold, 9, PAGE_W - M - wordsX).forEach((wl, i) => {
+    curPage.drawText(wl, { x: i === 0 ? wordsX : M, y: wy, size: 9, font: bold, color: black });
     wy -= 12;
   });
 
   if (isPartial) {
     const due = fullPaymentDue(rec.event_date || "");
-    page.drawText(`Balance of RM ${fmtMoney(balance)} to be settled${due ? " by " + due : ""}.`, { x: M, y: wy - 4, size: 8.5, font, color: grey });
+    curPage.drawText(`Balance of RM ${fmtMoney(balance)} to be settled${due ? " by " + due : ""}.`,
+      { x: M, y: wy - 4, size: 8.5, font, color: grey });
     wy -= 16;
   }
 
   y = wy - 24;
-  page.drawText("This is a computer generated invoice and no signature is required.", { x: M, y, size: 8, font, color: grey }); y -= 12;
-  page.drawText("All payment should be made payable to MONTAGE EVENT MANAGEMENT", { x: M, y, size: 8, font, color: grey }); y -= 12;
-  page.drawText("Bank :  RHB BANK BERHAD", { x: M, y, size: 8, font: bold, color: black }); y -= 12;
-  page.drawText("ACC No. :  21242400046344", { x: M, y, size: 8, font: bold, color: black });
+  curPage.drawText("This is a computer generated invoice and no signature is required.", { x: M, y, size: 8, font, color: grey }); y -= 12;
+  curPage.drawText("All payment should be made payable to MONTAGE EVENT MANAGEMENT",   { x: M, y, size: 8, font, color: grey }); y -= 12;
+  curPage.drawText("Bank :  RHB BANK BERHAD",      { x: M, y, size: 8, font: bold, color: black }); y -= 12;
+  curPage.drawText("ACC No. :  21242400046344",     { x: M, y, size: 8, font: bold, color: black });
 
   return { bytes: await pdf.save(), invoiceNo };
 }
+
 function bytesToBase64(bytes) {
   let bin = "";
   const chunk = 0x8000;
