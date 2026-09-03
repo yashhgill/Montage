@@ -166,7 +166,7 @@ export default function AdminInvoicePage() {
                 className="w-full bg-white/[0.04] border border-white/12 rounded-xl px-4 py-3 text-sm outline-none focus:border-neon-cyan" />
             </Field>
           </div>
-          <p className="text-[11px] text-white/40 mt-1.5">jojo@montageevents.my is always Bcc’d automatically — add anyone else here.</p>
+          <p className="text-[11px] text-white/40 mt-1.5">jojo@montageevents.my is always Bcc'd automatically — add anyone else here.</p>
 
           <h2 className="text-xs uppercase tracking-[0.25em] font-bold text-neon-cyan mt-7 mb-3">Client Type</h2>
           <div className="grid grid-cols-2 gap-3">
