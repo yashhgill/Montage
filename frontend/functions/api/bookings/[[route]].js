@@ -629,52 +629,6 @@ function fmtMoney(n) {
 //  2) rec.items absent (online booking flow, unchanged call site) — a single-line
 //     invoice is built automatically from the booking's package/deposit fields.
 async function buildInvoicePdf(env, rec) {
-  const pdf = await PDFDocument.create();
-  const font = await pdf.embedFont(StandardFonts.Helvetica);
-  const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
-
-  const black = rgb(0.08, 0.08, 0.1);
-  const grey  = rgb(0.35, 0.35, 0.38);
-  const gold  = rgb(0.72, 0.58, 0.18);
-  const M     = 48;
-  const PAGE_W = 595;
-  const PAGE_H = 842;
-  const FOOTER_RESERVE = 110; // space kept for total/words/bank details
-  const BOTTOM_MARGIN  = 46;  // absolute floor before we add a new page
-
-  // ─── Multi-page helpers ───────────────────────────────────────────────
-  let pages = [];
-  let curPage = null;
-  let y = 0;
-
-  const addPage = () => {
-    curPage = pdf.addPage([PAGE_W, PAGE_H]);
-    pages.push(curPage);
-    y = PAGE_H - 50;
-  };
-  addPage(); // first page
-
-  // Returns true if there is room for `needed` points on the current page
-  // (accounting for footer reserve on the last section).
-  const hasRoom = (needed, reserveFooter = false) =>
-    y - needed >= (reserveFooter ? FOOTER_RESERVE : BOTTOM_MARGIN);
-
-  // Ensure at least `needed` pts are available; add page if not.
-  const ensureRoom = (needed, reserveFooter = false) => {
-    if (!hasRoom(needed, reserveFooter)) addPage();
-  };
-
-  const centerText = (text, yPos, size, f = font, color = black) => {
-    const w = f.widthOfTextAtSize(text, size);
-    curPage.drawText(text, { x: (PAGE_W - w) / 2, y: yPos, size, font: f, color });
-  };
-  const rightText = (text, yPos, xRight, size, f = font, color = black) => {
-    const w = f.widthOfTextAtSize(text, size);
-    curPage.drawText(text, { x: xRight - w, y: yPos, size, font: f, color });
-  };
-  const drawLine = (yPos, thick = 1, color = rgb(0.75, 0.75, 0.75), x0 = M, x1 = PAGE_W - M) =>
-    curPage.drawLine({ start: { x: x0, y: yPos }, end: { x: x1, y: yPos }, thickness: thick, color });
-
   // ─── Normalize input ──────────────────────────────────────────────────
   let billToName, billToAddress, term, items, subtotal, amountDueNow, balance;
   if (rec.items) {
@@ -693,10 +647,10 @@ async function buildInvoicePdf(env, rec) {
     billToAddress = [rec.phone ? "Phone: " + rec.phone : "", rec.email ? "Email: " + rec.email : ""].filter(Boolean);
     term          = "Deposit";
     items         = [{ heading: rec.package_name, lines: [
-      rec.venue     ? "Venue: " + rec.venue : "",
+      rec.venue      ? "Venue: " + rec.venue : "",
       (rec.event_date || rec.time_slot) ? "Event date: " + (rec.event_date || "") + (rec.time_slot ? " \u00b7 " + rec.time_slot : "") : "",
-      rec.pax       ? "Pax: " + rec.pax : "",
-      rec.notes     ? "Notes: " + rec.notes : "",
+      rec.pax        ? "Pax: " + rec.pax : "",
+      rec.notes      ? "Notes: " + rec.notes : "",
     ].filter(Boolean), rate: null, qty: null, amount: total }];
     subtotal      = total;
     amountDueNow  = deposit;
@@ -705,201 +659,242 @@ async function buildInvoicePdf(env, rec) {
   const invoiceNo = rec.invoice_no || await getNextInvoiceNumber(env);
   const dateStr   = rec.date || new Date().toLocaleDateString("en-GB");
 
-  // ─── HEADER (logo + company + INVOICE title + Bill To / meta) ─────────
+  // ─── Page setup ───────────────────────────────────────────────────────
+  const pdf  = await PDFDocument.create();
+  const page = pdf.addPage([595, 842]);
+  const W    = 595;
+  const H    = 842;
+  const M    = 44;          // left/right margin
+  const font = await pdf.embedFont(StandardFonts.Helvetica);
+  const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+
+  const black = rgb(0.08, 0.08, 0.1);
+  const grey  = rgb(0.35, 0.35, 0.38);
+  const gold  = rgb(0.72, 0.58, 0.18);
+
+  const hasRateQty = items.some((it) => it.rate != null && it.qty != null);
+  const DESC_X   = M + 28;
+  const AMOUNT_X = W - M;
+  const RATE_X   = hasRateQty ? W - M - 178 : null;
+  const QTY_X    = hasRateQty ? W - M - 98  : null;
+  const DESC_MAX = (hasRateQty ? RATE_X - 14 : AMOUNT_X - 88) - DESC_X;
+
+  // ─── Pre-measure: count item content lines to pick a font/spacing scale ──
+  // Header fixed cost: logo+company (58) + gap (8) + rule (8) + INVOICE (34)
+  //   + gap (14) + billTo (14 + addrLines*12) + gap (16) + rule (8)
+  //   + tbl-header (26) + rule (8) = ~194 + addrLines*12
+  const addrLines = billToAddress.length;
+  const HEADER_H  = 194 + addrLines * 12;
+  // Footer fixed cost: rule + totals (isPartial ? 52 : 28) + rule + words (24) + bank (56)
+  const FOOTER_H  = (balance > 0.01 ? 52 : 28) + 24 +
+    (rec.remarks && String(rec.remarks).trim() ? 14 + String(rec.remarks).split("\n").length * 12 : 0) +
+    80;
+  const AVAIL = H - HEADER_H - FOOTER_H;  // pts available for item rows
+
+  // Count how many wrapped text lines the items will produce at DESC_MAX width
+  // using a rough char-width estimate (no actual font metrics here, conservative)
+  const estimateLine = (text, sz) => {
+    const charsPerLine = Math.max(1, Math.floor(DESC_MAX / (sz * 0.54)));
+    return Math.max(1, Math.ceil(String(text || "").length / charsPerLine));
+  };
+
+  let estimatedItemLines = 0;
+  items.forEach((item) => {
+    if (item.heading) estimatedItemLines += estimateLine(item.heading, 9.5) + 1;
+    const blocks = parseItemBlocks(item.lines);
+    blocks.forEach((block) => {
+      if (block.heading) estimatedItemLines += estimateLine(block.heading, 9.5) + 1;
+      block.bullets.forEach((b) => { estimatedItemLines += estimateLine(b, 9); });
+      estimatedItemLines += 0.4; // inter-block gap
+    });
+    estimatedItemLines += 1; // row gap
+  });
+
+  // Choose the largest line spacing that still fits, floored at 8pt spacing / 7.5pt font
+  const LINE_SPACINGS = [12, 11, 10, 9, 8];
+  const FONT_SIZES    = [9.5, 8.5, 8, 7.5, 7];
+  let LS = 12, FS = 9.5, FS_SM = 9; // default: normal size
+  for (let i = 0; i < LINE_SPACINGS.length; i++) {
+    const needed = estimatedItemLines * LINE_SPACINGS[i];
+    if (needed <= AVAIL) { LS = LINE_SPACINGS[i]; FS = FONT_SIZES[i]; FS_SM = Math.max(7, FONT_SIZES[i] - 0.5); break; }
+  }
+
+  // ─── Drawing helpers (always on the single page) ────────────────────
+  const centerText = (text, y, size, f = font, color = black) => {
+    const w = f.widthOfTextAtSize(text, size);
+    page.drawText(text, { x: (W - w) / 2, y, size, font: f, color });
+  };
+  const rightText = (text, y, xRight, size, f = font, color = black) => {
+    const w = f.widthOfTextAtSize(text, size);
+    page.drawText(text, { x: xRight - w, y, size, font: f, color });
+  };
+  const hline = (y, thick = 1, col = rgb(0.75, 0.75, 0.75), x0 = M, x1 = W - M) =>
+    page.drawLine({ start: { x: x0, y }, end: { x: x1, y }, thickness: thick, color: col });
+
+  // ─── HEADER ──────────────────────────────────────────────────────────
+  let y = H - 50;
+
   // Logo
   try {
     const logoUrl = "https://pub-b849c3b830534eeea60b6844defeeb9f.r2.dev/images/montage-gold-logo.png";
     const imgRes = await fetch(logoUrl);
     if (imgRes.ok) {
-      const bytes = new Uint8Array(await imgRes.arrayBuffer());
-      const png   = await pdf.embedPng(bytes);
-      const scaled = png.scaleToFit(92, 58);
-      curPage.drawImage(png, { x: M, y: y - 40, width: scaled.width, height: scaled.height });
+      const bytes  = new Uint8Array(await imgRes.arrayBuffer());
+      const png    = await pdf.embedPng(bytes);
+      const scaled = png.scaleToFit(90, 56);
+      page.drawImage(png, { x: M, y: y - 38, width: scaled.width, height: scaled.height });
     }
-  } catch (e) { /* logo optional */ }
+  } catch (_) {}
 
-  centerText("MONTAGE EVENT MANAGEMENT (MA0293072-D)", y - 2,  12, bold, black);
-  centerText("NO. 20, JALAN NAGASARI 36/9A, DESA ALAM, SEKSYEN 36,", y - 16, 8.5, font, grey);
-  centerText("40470 SHAH ALAM, SELANGOR",                              y - 27, 8.5, font, grey);
-  centerText("TEL: 013-344 6521   /   EMAIL: montage.eventmanagement@gmail.com", y - 38, 8.5, font, grey);
-  y -= 58;
-  drawLine(y); y -= 34;
-  centerText("INVOICE", y, 24, bold, black); y -= 40;
+  centerText("MONTAGE EVENT MANAGEMENT (MA0293072-D)", y - 2,  11.5, bold, black);
+  centerText("NO. 20, JALAN NAGASARI 36/9A, DESA ALAM, SEKSYEN 36,", y - 14, 8, font, grey);
+  centerText("40470 SHAH ALAM, SELANGOR",                              y - 24, 8, font, grey);
+  centerText("TEL: 013-344 6521   /   EMAIL: montage.eventmanagement@gmail.com", y - 34, 8, font, grey);
+  y -= 50;
+  hline(y); y -= 28;
+  centerText("INVOICE", y, 22, bold, black); y -= 36;
 
-  // Bill To + Invoice meta
+  // Bill To + meta
   const billToTop = y;
-  curPage.drawText("BILL TO:", { x: M, y, size: 9, font: bold, color: black });
-  curPage.drawText(sanitizePdfText(billToName), { x: M + 54, y, size: 10, font: bold, color: black });
-  let addrY = y - 14;
+  page.drawText("BILL TO:", { x: M, y, size: 9, font: bold, color: black });
+  page.drawText(sanitizePdfText(billToName), { x: M + 52, y, size: 9.5, font: bold, color: black });
+  let addrY = y - 12;
   for (const line of billToAddress) {
-    curPage.drawText(sanitizePdfText(line), { x: M, y: addrY, size: 9, font, color: grey });
-    addrY -= 12;
+    page.drawText(sanitizePdfText(line), { x: M, y: addrY, size: 8.5, font, color: grey });
+    addrY -= 11;
   }
   let metaY = billToTop;
-  rightText(sanitizePdfText(`INVOICE NO :  ${invoiceNo}`), metaY, PAGE_W - M, 9.5, bold, black); metaY -= 14;
-  rightText(sanitizePdfText(`DATE :  ${dateStr}`),         metaY, PAGE_W - M, 9.5, font, black); metaY -= 14;
-  rightText(sanitizePdfText(`TERM :  ${term}`),            metaY, PAGE_W - M, 9.5, font, black);
-  y = Math.min(addrY, metaY) - 16;
-  drawLine(y);
+  rightText(sanitizePdfText(`INVOICE NO :  ${invoiceNo}`), metaY, W - M, 9, bold, black); metaY -= 13;
+  rightText(sanitizePdfText(`DATE :  ${dateStr}`),         metaY, W - M, 9, font, black); metaY -= 13;
+  rightText(sanitizePdfText(`TERM :  ${term}`),            metaY, W - M, 9, font, black);
+  y = Math.min(addrY, metaY) - 12;
+  hline(y); y -= 18;
 
-  // ─── Table header ────────────────────────────────────────────────────
-  const hasRateQty = items.some((it) => it.rate != null && it.qty != null);
-  const ITEM_X   = M;
-  const DESC_X   = M + 28;
-  const AMOUNT_X = PAGE_W - M;
-  const RATE_X   = hasRateQty ? PAGE_W - M - 180 : null;
-  const QTY_X    = hasRateQty ? PAGE_W - M - 100 : null;
-  const DESC_MAX = (hasRateQty ? RATE_X - 15 : AMOUNT_X - 90) - DESC_X;
-
-  y -= 20;
-  curPage.drawText("ITEM",        { x: ITEM_X, y, size: 9, font: bold, color: black });
-  curPage.drawText("DESCRIPTION", { x: DESC_X, y, size: 9, font: bold, color: black });
+  // Table header
+  page.drawText("ITEM",        { x: M,      y, size: 8.5, font: bold, color: black });
+  page.drawText("DESCRIPTION", { x: DESC_X, y, size: 8.5, font: bold, color: black });
   if (hasRateQty) {
-    rightText("RATE",        y, RATE_X + 40, 9, bold, black);
-    rightText("QTY",         y, QTY_X  + 25, 9, bold, black);
+    rightText("RATE",        y, RATE_X + 38, 8.5, bold, black);
+    rightText("QTY",         y, QTY_X  + 22, 8.5, bold, black);
   }
-  rightText("AMOUNT (RM)", y, AMOUNT_X, 9, bold, black);
-  y -= 6;
-  drawLine(y, 1.2, black); y -= 16;
+  rightText("AMOUNT (RM)", y, AMOUNT_X, 8.5, bold, black);
+  y -= 5;
+  hline(y, 1.2, black); y -= LS;
 
-  // ─── Items ───────────────────────────────────────────────────────────
+  // ─── ITEM ROWS ───────────────────────────────────────────────────────
   items.forEach((item, idx) => {
     const blocks      = parseItemBlocks(item.lines);
     const hasSubitems = blocks.some((b) => b.bullets.length > 0);
     const rowTop      = y;
-
-    // Item number (only when flat/no sub-items)
-    if (!hasSubitems) {
-      curPage.drawText(String(idx + 1) + ".", { x: ITEM_X, y, size: 9.5, font, color: black });
-    }
-
-    // Item heading (the "ALL IN CHARGES" or package name label)
     let ly = y;
+
+    if (!hasSubitems) {
+      page.drawText(String(idx + 1) + ".", { x: M, y, size: FS, font, color: black });
+    }
     if (item.heading) {
-      ensureRoom(13);
-      curPage.drawText(sanitizePdfText(item.heading), { x: DESC_X, y: ly, size: 9.5, font: bold, color: black });
-      ly -= 13;
+      page.drawText(sanitizePdfText(item.heading), { x: DESC_X, y: ly, size: FS, font: bold, color: black });
+      ly -= LS;
     }
 
     if (hasSubitems) {
       let subNum = 1;
       for (const block of blocks) {
         if (block.heading) {
-          // sub-heading: bold, with number prefix only when there are also bullets (structured)
-          // detect: if this block has bullets it's a "1. Racing Simulator" style
-          // if no bullets it's a bare bold label (like "RACING SIMULATOR")
           if (block.bullets.length > 0) {
-            ensureRoom(14);
-            curPage.drawText(subNum + ".", { x: ITEM_X, y: ly, size: 9.5, font: bold, color: black });
-            const headLines = wrapText(sanitizePdfText(block.heading), bold, 9.5, DESC_MAX);
-            headLines.forEach((wl) => {
-              ensureRoom(13);
-              curPage.drawText(wl, { x: DESC_X, y: ly, size: 9.5, font: bold, color: black });
-              ly -= 12;
+            // numbered bold sub-heading
+            page.drawText(subNum + ".", { x: M, y: ly, size: FS, font: bold, color: black });
+            wrapText(sanitizePdfText(block.heading), bold, FS, DESC_MAX).forEach((wl) => {
+              page.drawText(wl, { x: DESC_X, y: ly, size: FS, font: bold, color: black });
+              ly -= LS;
             });
             subNum++;
           } else {
-            // bare bold sub-heading with no bullets — still bold but no number
-            ensureRoom(13);
-            const headLines = wrapText(sanitizePdfText(block.heading), bold, 9.5, DESC_MAX);
-            headLines.forEach((wl) => {
-              ensureRoom(13);
-              curPage.drawText(wl, { x: DESC_X, y: ly, size: 9.5, font: bold, color: black });
-              ly -= 12;
+            // bare bold label — no number
+            wrapText(sanitizePdfText(block.heading), bold, FS, DESC_MAX).forEach((wl) => {
+              page.drawText(wl, { x: DESC_X, y: ly, size: FS, font: bold, color: black });
+              ly -= LS;
             });
           }
         }
         for (const bullet of block.bullets) {
-          const bulletLines = wrapText(bullet, font, 9, DESC_MAX - 14);
-          bulletLines.forEach((wl, i) => {
-            ensureRoom(13);
-            curPage.drawText((i === 0 ? "\u2022 " : "  ") + wl, { x: DESC_X + 4, y: ly, size: 9, font, color: grey });
-            ly -= 12;
+          wrapText(bullet, font, FS_SM, DESC_MAX - 14).forEach((wl, i) => {
+            page.drawText((i === 0 ? "\u2022 " : "  ") + wl, { x: DESC_X + 4, y: ly, size: FS_SM, font, color: grey });
+            ly -= LS;
           });
         }
-        ly -= 4;
+        ly -= Math.round(LS * 0.3); // small inter-block gap
       }
     } else {
       blocks.forEach((block) => {
         if (!block.heading) return;
-        for (const wl of wrapText(block.heading, font, 9, DESC_MAX)) {
-          ensureRoom(13);
-          curPage.drawText(wl, { x: DESC_X, y: ly, size: 9, font, color: grey });
-          ly -= 12;
-        }
-        ly -= 3;
+        wrapText(block.heading, font, FS_SM, DESC_MAX).forEach((wl) => {
+          page.drawText(wl, { x: DESC_X, y: ly, size: FS_SM, font, color: grey });
+          ly -= LS;
+        });
+        ly -= 2;
       });
     }
 
     if (hasRateQty) {
-      rightText(fmtMoney(item.rate), rowTop, RATE_X + 40, 9.5, font, black);
-      rightText(String(item.qty),    rowTop, QTY_X  + 25, 9.5, font, black);
+      rightText(fmtMoney(item.rate), rowTop, RATE_X + 38, FS, font, black);
+      rightText(String(item.qty),    rowTop, QTY_X  + 22, FS, font, black);
     }
-    rightText(fmtMoney(item.amount), rowTop, AMOUNT_X, 9.5, font, black);
-    y = ly - 8;
+    rightText(fmtMoney(item.amount), rowTop, AMOUNT_X, FS, font, black);
+    y = ly - Math.round(LS * 0.6);
   });
 
-  // ─── Separator after items ────────────────────────────────────────────
-  ensureRoom(20);
-  drawLine(y); y -= 20;
+  hline(y); y -= 16;
 
   // ─── Remarks ─────────────────────────────────────────────────────────
   if (rec.remarks && String(rec.remarks).trim()) {
-    ensureRoom(13);
-    curPage.drawText("REMARKS", { x: M, y, size: 8.5, font: bold, color: gold });
-    y -= 13;
+    page.drawText("REMARKS", { x: M, y, size: 8, font: bold, color: gold }); y -= 11;
     for (const rawLine of sanitizePdfText(String(rec.remarks)).split("\n")) {
-      if (!rawLine.trim()) { y -= 6; continue; }
-      for (const wl of wrapText(rawLine, font, 9, PAGE_W - 2 * M)) {
-        ensureRoom(13);
-        curPage.drawText(wl, { x: M, y, size: 9, font, color: black });
-        y -= 12;
+      if (!rawLine.trim()) { y -= 5; continue; }
+      for (const wl of wrapText(rawLine, font, 8.5, W - 2 * M)) {
+        page.drawText(wl, { x: M, y, size: 8.5, font, color: black }); y -= 11;
       }
     }
-    y -= 10;
+    y -= 8;
   }
 
-  // ─── Totals / footer — always on the same page section ───────────────
-  // If there's not enough room for the whole footer, push to a fresh page.
-  const footerHeight = (balance > 0.01 ? 80 : 50) + 60;
-  ensureRoom(footerHeight, false);
-
+  // ─── Totals ───────────────────────────────────────────────────────────
   const isPartial = balance > 0.01;
   if (isPartial) {
-    rightText("Subtotal (RM)",                  y, AMOUNT_X - 110, 9, font, grey);
-    rightText(fmtMoney(subtotal),               y, AMOUNT_X,       9, font, black); y -= 14;
-    rightText("Less: Deposit / Amount Paid (RM)", y, AMOUNT_X - 110, 9, font, grey);
-    rightText("- " + fmtMoney(amountDueNow),    y, AMOUNT_X,       9, font, black); y -= 8;
-    drawLine(y, 0.7, rgb(0.8, 0.8, 0.8), PAGE_W - M - 220, PAGE_W - M); y -= 16;
+    rightText("Subtotal (RM)",                    y, AMOUNT_X - 108, 8.5, font, grey);
+    rightText(fmtMoney(subtotal),                 y, AMOUNT_X,       8.5, font, black); y -= 12;
+    rightText("Less: Deposit / Amount Paid (RM)", y, AMOUNT_X - 108, 8.5, font, grey);
+    rightText("- " + fmtMoney(amountDueNow),      y, AMOUNT_X,       8.5, font, black); y -= 7;
+    hline(y, 0.7, rgb(0.8, 0.8, 0.8), W - M - 218, W - M); y -= 13;
   }
-  rightText(isPartial ? "AMOUNT DUE NOW (MYR):" : "TOTAL (MYR):", y, AMOUNT_X - 90, 11, bold, black);
-  rightText(fmtMoney(amountDueNow), y, AMOUNT_X, 12, bold, black); y -= 8;
-  drawLine(y, 1.2, black); y -= 22;
+  rightText(isPartial ? "AMOUNT DUE NOW (MYR):" : "TOTAL (MYR):", y, AMOUNT_X - 88, 10.5, bold, black);
+  rightText(fmtMoney(amountDueNow), y, AMOUNT_X, 11.5, bold, black); y -= 7;
+  hline(y, 1.2, black); y -= 18;
 
   const wordsLabel = "RINGGIT MALAYSIA: ";
-  curPage.drawText(wordsLabel, { x: M, y, size: 9, font, color: black });
-  const wordsX = M + font.widthOfTextAtSize(wordsLabel, 9);
+  page.drawText(wordsLabel, { x: M, y, size: 8.5, font, color: black });
+  const wordsX = M + font.widthOfTextAtSize(wordsLabel, 8.5);
   let wy = y;
-  wrapText(ringgitWords(amountDueNow), bold, 9, PAGE_W - M - wordsX).forEach((wl, i) => {
-    curPage.drawText(wl, { x: i === 0 ? wordsX : M, y: wy, size: 9, font: bold, color: black });
-    wy -= 12;
+  wrapText(ringgitWords(amountDueNow), bold, 8.5, W - M - wordsX).forEach((wl, i) => {
+    page.drawText(wl, { x: i === 0 ? wordsX : M, y: wy, size: 8.5, font: bold, color: black });
+    wy -= 11;
   });
-
   if (isPartial) {
     const due = fullPaymentDue(rec.event_date || "");
-    curPage.drawText(`Balance of RM ${fmtMoney(balance)} to be settled${due ? " by " + due : ""}.`,
-      { x: M, y: wy - 4, size: 8.5, font, color: grey });
-    wy -= 16;
+    page.drawText(`Balance of RM ${fmtMoney(balance)} to be settled${due ? " by " + due : ""}.`,
+      { x: M, y: wy - 3, size: 8, font, color: grey });
+    wy -= 13;
   }
 
-  y = wy - 24;
-  curPage.drawText("This is a computer generated invoice and no signature is required.", { x: M, y, size: 8, font, color: grey }); y -= 12;
-  curPage.drawText("All payment should be made payable to MONTAGE EVENT MANAGEMENT",   { x: M, y, size: 8, font, color: grey }); y -= 12;
-  curPage.drawText("Bank :  RHB BANK BERHAD",      { x: M, y, size: 8, font: bold, color: black }); y -= 12;
-  curPage.drawText("ACC No. :  21242400046344",     { x: M, y, size: 8, font: bold, color: black });
+  // ─── Footer ───────────────────────────────────────────────────────────
+  y = wy - 18;
+  page.drawText("This is a computer generated invoice and no signature is required.", { x: M, y, size: 7.5, font, color: grey }); y -= 10;
+  page.drawText("All payment should be made payable to MONTAGE EVENT MANAGEMENT",   { x: M, y, size: 7.5, font, color: grey }); y -= 10;
+  page.drawText("Bank :  RHB BANK BERHAD",   { x: M, y, size: 7.5, font: bold, color: black }); y -= 10;
+  page.drawText("ACC No. :  21242400046344",  { x: M, y, size: 7.5, font: bold, color: black });
 
   return { bytes: await pdf.save(), invoiceNo };
 }
+
 
 function bytesToBase64(bytes) {
   let bin = "";
