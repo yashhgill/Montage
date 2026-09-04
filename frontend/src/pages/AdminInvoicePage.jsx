@@ -26,6 +26,7 @@ export default function AdminInvoicePage() {
   const [formError, setFormError] = useState("");
   const [previewing, setPreviewing] = useState(false);
   const [previewUrl, setPreviewUrl] = useState(null);
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(typeof navigator !== 'undefined' ? navigator.userAgent : '');
   const previewUrlRef = useRef(null);
 
   useEffect(() => {
@@ -328,7 +329,18 @@ export default function AdminInvoicePage() {
           </div>
           <div className="rounded-2xl border border-white/12 overflow-hidden bg-[#0A0A14] h-[75vh]">
             {previewUrl ? (
-              <iframe title="Invoice preview" src={previewUrl} className="w-full h-full bg-white border-0" />
+              isMobile ? (
+                <div className="h-full grid place-items-center flex-col gap-4 px-8 text-center">
+                  <div className="text-white/60 text-sm mb-4">PDF generated successfully.<br/>Tap below to open it.</div>
+                  <a href={previewUrl} target="_blank" rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-neon-cyan text-black font-bold text-base">
+                    Open Invoice PDF
+                  </a>
+                  <p className="text-[11px] text-white/35 mt-3">Opens in your browser's PDF viewer.<br/>Nothing is sent until you tap Generate &amp; Send.</p>
+                </div>
+              ) : (
+                <iframe title="Invoice preview" src={previewUrl} className="w-full h-full bg-white border-0" />
+              )
             ) : (
               <div className="h-full grid place-items-center text-white/35 text-sm px-8 text-center">
                 Fill in the form and click <span className="text-neon-cyan font-semibold mx-1">Preview Invoice</span> to see it here. Keep editing and re-click to refresh — nothing is sent until you click Generate &amp; Send.
