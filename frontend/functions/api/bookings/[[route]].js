@@ -70,6 +70,9 @@ export async function onRequest(context) {
     if (method === "GET" && head === "test-fire") return handleTestFire(request, env);
     if (method === "POST" && head === "admin" && route[1] === "manual-invoice") return handleAdminManualInvoice(request, env);
     if (method === "POST" && head === "admin" && route[1] === "preview-invoice") return handlePreviewInvoice(request, env);
+    // Custom packages
+    if (method === "POST" && head === "admin" && route[1] === "custom-package") return handleCreateCustomPackage(request, env);
+    if (method === "GET"  && head === "custom-package" && route[1]) return handleGetCustomPackage(request, env, route[1]);
     return json({ detail: "Not found" }, 404);
   } catch (err) {
     return json({ detail: err.message || "Server error" }, 500);
@@ -903,6 +906,65 @@ function bytesToBase64(bytes) {
     bin += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
   }
   return btoa(bin);
+}
+
+// ─── Custom Package Handlers ────────────────────────────────────────────────
+
+// GET /api/bookings/custom-package/:token  — public, used by BookingsPage
+async function handleGetCustomPackage(request, env, token) {
+  try {
+    const row = await env.DB.prepare(
+      "SELECT * FROM custom_packages WHERE token = ? AND status = 'pending'"
+    ).bind(token).first();
+    if (!row) return json({ error: "This link is invalid or has already been used." }, 404);
+    if (row.expires_at && new Date(row.expires_at) < new Date())
+      return json({ error: "This custom package link has expired." }, 410);
+    return json({
+      token: row.token,
+      name: row.name,
+      description: row.description,
+      items: JSON.parse(row.items_json || "[]"),
+      total_rm: row.total_rm,
+      deposit_rm: row.deposit_rm,
+      promo_allowed: !!row.promo_allowed,
+    });
+  } catch (e) {
+    return json({ error: "Could not load package: " + e.message }, 500);
+  }
+}
+
+// POST /api/bookings/admin/custom-package  — staff creates a custom package
+async function handleCreateCustomPackage(request, env) {
+  if (!checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
+  let b;
+  try { b = await request.json(); } catch { return json({ detail: "Invalid JSON" }, 400); }
+
+  const name = String(b.name || "").trim();
+  const description = String(b.description || "").trim();
+  const items = Array.isArray(b.items) ? b.items : [];
+  const totalRm = Number(b.total_rm);
+  const depositRm = 500;
+  const promoAllowed = b.promo_allowed !== false ? 1 : 0;
+  const expiryDays = Number(b.expiry_days) || 7;
+
+  if (!name) return json({ detail: "Package name is required" }, 400);
+  if (!totalRm || totalRm <= 0) return json({ detail: "Total must be greater than 0" }, 400);
+
+  const token = "CP" + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2,6).toUpperCase();
+  const now = new Date().toISOString();
+  const expiresAt = new Date(Date.now() + expiryDays * 86400000).toISOString();
+
+  await env.DB.prepare(
+    `INSERT INTO custom_packages (token,name,description,items_json,total_rm,deposit_rm,status,promo_allowed,expires_at,created_at)
+     VALUES (?,?,?,?,?,?,'pending',?,?,?)`
+  ).bind(token, name, description, JSON.stringify(items), totalRm, depositRm, promoAllowed, expiresAt, now).run();
+
+  const siteUrl = env.SITE_URL || "https://montageevents.my";
+  return json({
+    token,
+    link: `${siteUrl}/bookings?pkg=${token}`,
+    expires_at: expiresAt,
+  });
 }
 
 // Proper invoice cover email — used only by the staff manual-invoice tool.
