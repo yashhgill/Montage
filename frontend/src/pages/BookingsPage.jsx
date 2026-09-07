@@ -178,6 +178,8 @@ function fmtDate(d) {
 export default function BookingsPage() {
   const [step, setStep] = useState(0);
   const [config, setConfig] = useState({ deposit_rm: 500, time_slots: [], payment_ready: false });
+  const [customPkg, setCustomPkg] = useState(null);   // null = normal flow, object = custom package mode
+  const [customPkgError, setCustomPkgError] = useState("");
   const [taken, setTaken] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -199,6 +201,27 @@ export default function BookingsPage() {
   useEffect(() => {
     axios.get(`${API}/bookings/config`).then((r) => setConfig(r.data)).catch(() => {});
     axios.get(`${API}/bookings/availability`).then((r) => setTaken(r.data.taken || [])).catch(() => {});
+    // detect ?pkg=TOKEN — load custom package if present
+    const params = new URLSearchParams(window.location.search);
+    const pkgToken = params.get("pkg");
+    if (pkgToken) {
+      axios.get(`${API}/bookings/custom-package/${pkgToken}`)
+        .then((r) => {
+          const pkg = r.data;
+          setCustomPkg(pkg);
+          set({
+            service: pkg.name,
+            package_id: pkg.token,
+            package_name: pkg.name,
+            package_price: "RM " + Number(pkg.total_rm).toLocaleString("en-MY"),
+            full_day: true,
+          });
+          setStep(2);
+        })
+        .catch((e) => {
+          setCustomPkgError(e?.response?.data?.error || "This package link is invalid or has expired.");
+        });
+    }
   }, []);
 
   const set = (patch) => setForm((f) => ({ ...f, ...patch }));
@@ -354,7 +377,40 @@ export default function BookingsPage() {
             </div>
           )}
 
-          {step === 2 && service && (
+          {/* Custom package error banner */}
+          {customPkgError && (
+            <div className="mb-8 rounded-2xl border border-neon-pink/40 bg-neon-pink/10 p-5 text-center">
+              <p className="font-bold text-neon-pink mb-1">Link unavailable</p>
+              <p className="text-sm text-white/70">{customPkgError}</p>
+            </div>
+          )}
+
+          {/* Custom package summary — shown instead of the normal package picker when ?pkg= is in the URL */}
+          {step === 2 && customPkg && (
+            <div className="animate-fade-up mb-6">
+              <div className="rounded-2xl border border-neon-cyan/30 bg-neon-cyan/5 p-5">
+                <p className="text-xs uppercase tracking-[0.25em] font-bold text-neon-cyan mb-2">Your Custom Package</p>
+                <h3 className="font-display font-black text-2xl mb-1">{customPkg.name}</h3>
+                {customPkg.description && <p className="text-white/60 text-sm mb-3">{customPkg.description}</p>}
+                {customPkg.items && customPkg.items.length > 0 && (
+                  <ul className="space-y-1 mb-4">
+                    {customPkg.items.map((it, i) => (
+                      <li key={i} className="flex justify-between text-sm">
+                        <span className="text-white/80">{it.name}</span>
+                        {it.price != null && <span className="text-white/50">RM {Number(it.price).toLocaleString("en-MY")}</span>}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <div className="flex justify-between items-center border-t border-white/10 pt-3 mt-3">
+                  <span className="text-sm text-white/50">Package Total</span>
+                  <span className="font-bold text-lg">RM {Number(customPkg.total_rm).toLocaleString("en-MY")}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {step === 2 && service && !customPkg && (
             <div className="animate-fade-up">
               <h2 className="font-display font-black text-3xl sm:text-4xl tracking-tighter mb-2">{service.name} packages</h2>
               <p className="text-white/55 mb-6">Every booking is secured with a RM{config.deposit_rm} deposit.</p>
@@ -414,6 +470,8 @@ export default function BookingsPage() {
               </div>
             </div>
           )}
+
+          {/* end !customPkg wrapper */}
 
           {step === 3 && (
             <div className="animate-fade-up">
