@@ -16,7 +16,7 @@ const BASE_PACKAGES = [
   { name: "Custom / Blank", total: 0 },
 ];
 
-const blankItem = () => ({ name: "", price: "" });
+const blankItem = () => ({ name: "", price: "", description: "" });
 
 export default function AdminCustomPackagePage() {
   const [adminKey, setAdminKey] = useState("");
@@ -70,6 +70,7 @@ export default function AdminCustomPackagePage() {
         items: items.filter((it) => it.name.trim()).map((it) => ({
           name: it.name.trim(),
           price: Number(it.price) || null,
+          description: it.description ? it.description.trim() : undefined,
         })),
         total_rm: itemTotal,
         promo_allowed: promoAllowed,
@@ -157,16 +158,21 @@ export default function AdminCustomPackagePage() {
         <h2 className="text-xs uppercase tracking-[0.25em] font-bold text-neon-cyan mb-3">Line Items</h2>
         <div className="space-y-3 mb-3">
           {items.map((it, idx) => (
-            <div key={idx} className="flex gap-3 items-start">
-              <input value={it.name} onChange={(e) => setItem(idx, { name: e.target.value })}
-                placeholder="Item name"
-                className="flex-1 bg-white/[0.04] border border-white/12 rounded-xl px-4 py-3 text-sm outline-none focus:border-neon-cyan" />
-              <input value={it.price} onChange={(e) => setItem(idx, { price: e.target.value })}
-                type="number" min="0" placeholder="RM"
-                className="w-28 bg-white/[0.04] border border-white/12 rounded-xl px-3 py-3 text-sm outline-none focus:border-neon-cyan" />
-              {items.length > 1 && (
-                <button onClick={() => removeItem(idx)} className="mt-3 text-white/30 hover:text-neon-pink"><Trash2 size={14} /></button>
-              )}
+            <div key={idx} className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 space-y-3">
+              <div className="flex gap-3 items-start">
+                <input value={it.name} onChange={(e) => setItem(idx, { name: e.target.value })}
+                  placeholder="Item name (e.g. Bar Setup & Bartenders)"
+                  className="flex-1 bg-white/[0.04] border border-white/12 rounded-xl px-4 py-3 text-sm outline-none focus:border-neon-cyan" />
+                <input value={it.price} onChange={(e) => setItem(idx, { price: e.target.value })}
+                  type="number" min="0" placeholder="RM"
+                  className="w-28 bg-white/[0.04] border border-white/12 rounded-xl px-3 py-3 text-sm outline-none focus:border-neon-cyan" />
+                {items.length > 1 && (
+                  <button onClick={() => removeItem(idx)} className="mt-3 text-white/30 hover:text-neon-pink"><Trash2 size={14} /></button>
+                )}
+              </div>
+              <textarea value={it.description || ""} onChange={(e) => setItem(idx, { description: e.target.value })} rows={2}
+                placeholder="What's included — shown to the customer (e.g. 2 bartenders, unlimited mocktails, full setup & cleanup)"
+                className="w-full bg-white/[0.04] border border-white/12 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-neon-cyan resize-none text-white/70" />
             </div>
           ))}
         </div>
