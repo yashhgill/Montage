@@ -178,7 +178,8 @@ function fmtDate(d) {
 export default function BookingsPage() {
   const [step, setStep] = useState(0);
   const [config, setConfig] = useState({ deposit_rm: 500, time_slots: [], payment_ready: false });
-  const [customPkg, setCustomPkg] = useState(null);   // null = normal flow, object = custom package mode
+  const [customPkg, setCustomPkg] = useState(null);
+  const [consentGiven, setConsentGiven] = useState(false);   // null = normal flow, object = custom package mode
   const [customPkgError, setCustomPkgError] = useState("");
   const [taken, setTaken] = useState([]);
   const [submitting, setSubmitting] = useState(false);
@@ -616,10 +617,23 @@ export default function BookingsPage() {
                 Continue <ChevronRight size={16} />
               </button>
             ) : (
-              <button onClick={submit} disabled={submitting || !config.payment_ready}
+              <>
+              <label className="flex items-start gap-3 mb-4 cursor-pointer">
+                <input type="checkbox" checked={consentGiven} onChange={(e) => setConsentGiven(e.target.checked)}
+                  className="mt-0.5 accent-neon-cyan w-4 h-4 shrink-0" aria-required="true" />
+                <span className="text-xs text-white/55 leading-relaxed">
+                  I agree to the{" "}
+                  <Link to="/terms" className="text-neon-cyan hover:underline" target="_blank">Terms & Conditions</Link>
+                  {" "}and{" "}
+                  <Link to="/privacy-policy" className="text-neon-cyan hover:underline" target="_blank">Privacy Policy</Link>.
+                  I consent to Montage Event Management collecting and using my personal data to process my booking.
+                </span>
+              </label>
+              <button onClick={submit} disabled={submitting || !config.payment_ready || !consentGiven}
                 className="inline-flex items-center gap-2 px-7 py-3 rounded-full bg-neon-lime text-black font-bold disabled:opacity-40 hover:scale-[1.04] transition-transform neon-glow-lime">
                 {submitting ? <><Loader2 size={16} className="animate-spin" /> Redirecting…</> : `Pay RM${promoState === "ok" ? promoInfo.deposit_rm : config.deposit_rm} Deposit`}
               </button>
+              </>
             )}
           </div>
         </div>
