@@ -1,4 +1,5 @@
 import { Instagram } from "lucide-react";
+import { Link } from "react-router-dom";
 import { PHONE_DISPLAY, EMAIL, INSTAGRAM } from "../data/content";
 
 const LOGO = "https://pub-b849c3b830534eeea60b6844defeeb9f.r2.dev/images/montage-gold-logo.png";
@@ -52,8 +53,14 @@ export default function Footer() {
         />
       </div>
 
-      <div className="max-w-7xl mx-auto mt-10 pt-6 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-white/40">
-        <p>© {new Date().getFullYear()} Montage Events. All rights reserved.</p>
+      <div className="max-w-7xl mx-auto mt-10 pt-6 border-t border-white/5 flex flex-wrap justify-center gap-x-5 gap-y-2 text-xs text-white/40 mb-4">
+        <Link to="/privacy-policy" className="hover:text-white/70 transition-colors">Privacy Policy</Link>
+        <Link to="/terms" className="hover:text-white/70 transition-colors">Terms & Conditions</Link>
+        <Link to="/refund-policy" className="hover:text-white/70 transition-colors">Refund Policy</Link>
+        <Link to="/cookies" className="hover:text-white/70 transition-colors">Cookie Policy</Link>
+      </div>
+      <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-white/40">
+        <p>© {new Date().getFullYear()} Montage Event Management (MA0293072-D). All rights reserved.</p>
         <p>
           Built by{" "}
           <a
