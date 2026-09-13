@@ -75,7 +75,7 @@ export async function onRequest(context) {
     if (method === "GET"  && head === "custom-package" && route[1]) return handleGetCustomPackage(request, env, route[1]);
     return json({ detail: "Not found" }, 404);
   } catch (err) {
-    return json({ detail: err.message || "Server error" }, 500);
+    return json({ detail: "An error occurred. Please try again." }, 500);
   }
 }
 
@@ -191,6 +191,32 @@ async function handleCallback(request, env) {
   const ref = form.get("order_id") || form.get("billExternalReferenceNo") || "";
   const statusId = String(form.get("status") || form.get("status_id") || "");
   const billCode = form.get("billcode") || form.get("billCode") || "";
+
+  // ── Security: verify payment with ToyyibPay API before trusting callback ──
+  // Prevents fake POSTs from marking bookings as paid without actual payment.
+  if (statusId === "1" && billCode && env.TOYYIBPAY_SECRET_KEY) {
+    try {
+      const verifyResp = await fetch(`${TOYYIBPAY_BASE}/index.php/api/getBillTransactions`, {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ userSecretKey: env.TOYYIBPAY_SECRET_KEY, billCode }),
+      });
+      const txns = await verifyResp.json();
+      // ToyyibPay returns array of transactions; we need at least one with billpaymentStatus=1
+      const verified = Array.isArray(txns) && txns.some(
+        (t) => String(t.billpaymentStatus) === "1" && t.billCode === billCode
+      );
+      if (!verified) {
+        // Log the attempt and reject — this is a fake or failed callback
+        console.error("SECURITY: Unverified callback for", billCode, "ref", ref, "status", statusId);
+        return json({ ok: true }); // always return ok to ToyyibPay, but don't process
+      }
+    } catch (e) {
+      // If verification call fails, process conservatively (don't mark paid)
+      console.error("SECURITY: Could not verify payment with ToyyibPay:", e.message);
+      return json({ ok: true });
+    }
+  }
 
   const rec = await env.DB.prepare(
     `SELECT * FROM event_bookings WHERE reference=? OR bill_code=?`
@@ -378,7 +404,7 @@ async function handlePreviewInvoice(request, env) {
     const { bytes } = await buildInvoicePdf(env, rec);
     return json({ ok: true, pdf_base64: bytesToBase64(bytes) });
   } catch (e) {
-    return json({ detail: "Could not generate preview: " + e.message }, 500);
+    return json({ detail: "Could not generate preview. Please try again." }, 500);
   }
 }
 
@@ -387,9 +413,9 @@ async function handleAdminManualInvoice(request, env) {
   let b;
   try { b = await request.json(); } catch { return json({ detail: "Invalid request" }, 400); }
 
-  const name = String(b.name || "").trim();
-  const phone = String(b.phone || "").trim();
-  const email = String(b.email || "").trim();
+  const name = String(b.name || "").trim().slice(0, 120);
+  const phone = String(b.phone || "").trim().slice(0, 30);
+  const email = String(b.email || "").trim().slice(0, 200);
   const billToName = String(b.bill_to_name || name).trim();
   const billToAddress = String(b.bill_to_address || "").split("\n").map((s) => s.trim()).filter(Boolean);
   const term = String(b.term || "COD").trim();
@@ -929,7 +955,7 @@ async function handleGetCustomPackage(request, env, token) {
       promo_allowed: !!row.promo_allowed,
     });
   } catch (e) {
-    return json({ error: "Could not load package: " + e.message }, 500);
+    return json({ error: "Could not load package. The link may be invalid." }, 500);
   }
 }
 
