@@ -9,6 +9,7 @@ import PhotoboothSharePage from "@/pages/PhotoboothSharePage";
 import AdminPhotoboothPage from "@/pages/AdminPhotoboothPage";
 import AdminInvoicePage from "@/pages/AdminInvoicePage";
 import AdminCustomPackagePage from "@/pages/AdminCustomPackagePage";
+import AdminDashboardPage from "@/pages/AdminDashboardPage";
 import PrivacyPolicyPage from "@/pages/PrivacyPolicyPage";
 import TermsPage from "@/pages/TermsPage";
 import RefundPolicyPage from "@/pages/RefundPolicyPage";
@@ -21,6 +22,7 @@ function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/bookings" element={<BookingsPage />} />
         <Route path="/bookings/success" element={<BookingSuccessPage />} />
+        <Route path="/admin" element={<AdminDashboardPage />} />
         <Route path="/admin/newsletter" element={<AdminNewsletterPage />} />
         <Route path="/admin/expo" element={<AdminExpoGamePage />} />
         <Route path="/photobooth" element={<PhotoboothPage />} />
