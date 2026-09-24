@@ -6,7 +6,7 @@ const ROTATING = ["unforgettable.", "electric.", "legendary.", "iconic."];
 
 export default function Hero() {
   const { resolve } = useImageOverrides();
-  const resolvedSlides = resolvedSlides.map((url, i) => resolve(`hero.${i}`, url));
+  const resolvedSlides = heroSlides.map((url, i) => resolve(`hero.${i}`, url));
   const [active, setActive] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -61,7 +61,7 @@ export default function Hero() {
     });
   }, [loaded]);
 
-  const slides = isMobile ? heroSlides.slice(0, 1) : heroSlides;
+  const slides = isMobile ? resolvedSlides.slice(0, 1) : resolvedSlides;
 
   return (
     <section id="top" data-testid="hero-section"
