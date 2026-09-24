@@ -1,4 +1,5 @@
 import { experience } from "../data/content";
+import { useImageOverrides } from "../context/ImageOverridesContext";
 import { useScrollReveal } from "../hooks/useScrollReveal";
 
 function ExperienceCard({ item, i }) {
@@ -25,7 +26,7 @@ function ExperienceCard({ item, i }) {
   );
 }
 
-export default function Experience() {
+export default function Experience()  {
   const [headRef, headVisible] = useScrollReveal();
   return (
     <section id="experience" data-testid="experience-section"
@@ -40,7 +41,7 @@ export default function Experience() {
           </h2>
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-3 auto-rows-[200px] sm:auto-rows-[240px] lg:auto-rows-[280px] gap-4">
-          {experience.map((item, i) => <ExperienceCard key={item.title} item={item} i={i} />)}
+          {resolvedExperience.map((item, i) => <ExperienceCard key={item.title} item={item} i={i} />)}
         </div>
       </div>
     </section>
