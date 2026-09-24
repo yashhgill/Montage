@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Lock, FileText, Package, Gamepad2, Mail, Camera, LayoutDashboard, ExternalLink, ChevronRight, Image
+  Lock, FileText, Package, Gamepad2, Mail, Camera, LayoutDashboard, ExternalLink, ChevronRight, Image, ClipboardList
 } from "lucide-react";
 
 const TOOLS = [
@@ -13,6 +13,15 @@ const TOOLS = [
     icon: FileText,
     path: "/admin/invoice",
     color: "neon-cyan",
+  },
+  {
+    id: "quotation",
+    title: "Quotation",
+    subtitle: "Create & send price estimates",
+    description: "Build an itemised quotation for a client, preview the PDF, then email it directly — no booking or payment created.",
+    icon: ClipboardList,
+    path: "/admin/quotation",
+    color: "neon-yellow",
   },
   {
     id: "custom-package",
