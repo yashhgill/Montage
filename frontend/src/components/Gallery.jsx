@@ -6,7 +6,7 @@ import { useImageOverrides } from "../context/ImageOverridesContext";
 export default function Gallery() {
   const { resolve } = useImageOverrides();
   const resolvedPhotos = galleryPhotos.map((url, i) => resolve(`gallery.photo.${i}`, url));
-  const resolvedVideos = resolvedVideos.map((v, i) => ({
+  const resolvedVideos = galleryVideos.map((v, i) => ({
     ...v,
     poster: resolve(`gallery.video.poster.${i}`, v.poster),
   }));
