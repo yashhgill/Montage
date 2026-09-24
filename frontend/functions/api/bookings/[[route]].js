@@ -75,6 +75,8 @@ export async function onRequest(context) {
     // Quotation
     if (method === "POST" && head === "admin" && route[1] === "quotation") return handleAdminQuotation(request, env);
     if (method === "POST" && head === "admin" && route[1] === "preview-quotation") return handlePreviewQuotation(request, env);
+    // Media upload (images + videos) → R2
+    if (method === "POST" && head === "admin" && route[1] === "upload-media") return handleUploadMedia(request, env);
     // Site image overrides
     if (method === "GET"  && head === "site-images") return handleGetSiteImages(request, env);
     if (method === "POST" && head === "admin" && route[1] === "site-images") return handleSetSiteImage(request, env);
@@ -1156,6 +1158,60 @@ async function handlePreviewQuotation(request, env) {
   } catch(e) {
     return json({ detail: "Could not generate preview." }, 500);
   }
+}
+
+// ─── Media Upload Handler ────────────────────────────────────────────────────
+// POST /api/bookings/admin/upload-media
+// Accepts multipart/form-data with:
+//   file  — the image or video binary
+//   slot  — the site_images key this should replace (optional, auto-sets override)
+// Returns: { ok, url, key } — the public R2 URL
+// Requires: SITE_IMAGES_BUCKET binding pointing to the public images R2 bucket
+const R2_PUBLIC_BASE = "https://pub-b849c3b830534eeea60b6844defeeb9f.r2.dev/images";
+const ALLOWED_TYPES = new Set(["image/jpeg","image/jpg","image/png","image/webp","image/gif","video/mp4","video/quicktime","video/webm"]);
+const MAX_SIZE_BYTES = 200 * 1024 * 1024; // 200 MB
+
+async function handleUploadMedia(request, env) {
+  if (!checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
+  if (!env.SITE_IMAGES_BUCKET) return json({ detail: "R2 bucket binding not configured. Add SITE_IMAGES_BUCKET binding in Cloudflare Pages settings." }, 503);
+
+  let formData;
+  try { formData = await request.formData(); }
+  catch { return json({ detail: "Expected multipart/form-data" }, 400); }
+
+  const file = formData.get("file");
+  const slotKey = String(formData.get("slot") || "").trim();
+
+  if (!file || typeof file.name !== "string") return json({ detail: "No file received" }, 400);
+  if (!ALLOWED_TYPES.has(file.type)) return json({ detail: `File type ${file.type} not allowed. Use JPEG, PNG, WebP, GIF, MP4, or WebM.` }, 400);
+  if (file.size > MAX_SIZE_BYTES) return json({ detail: `File too large. Maximum size is 200 MB.` }, 400);
+
+  // Build a clean R2 key: uploads/YYYY-MM/timestamp-slug.ext
+  const ext = file.name.split(".").pop().toLowerCase().replace(/[^a-z0-9]/g,"") || "bin";
+  const now = new Date();
+  const month = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}`;
+  const slug = file.name.replace(/\.[^.]+$/,"").toLowerCase().replace(/[^a-z0-9]+/g,"-").slice(0,40);
+  const key = `uploads/${month}/${now.getTime()}-${slug}.${ext}`;
+
+  const bytes = await file.arrayBuffer();
+  await env.SITE_IMAGES_BUCKET.put(key, bytes, {
+    httpMetadata: { contentType: file.type },
+  });
+
+  // Public URL: bucket root + key (bucket serves from root, not /images/)
+  const url = `https://pub-b849c3b830534eeea60b6844defeeb9f.r2.dev/${key}`;
+
+  // If a slot key was given, automatically set the override in D1
+  if (slotKey) {
+    try {
+      await env.DB.prepare(`
+        INSERT INTO site_images (key, url, label, updated_at) VALUES (?,?,?,?)
+        ON CONFLICT(key) DO UPDATE SET url=excluded.url, updated_at=excluded.updated_at
+      `).bind(slotKey, url, slotKey, now.toISOString()).run();
+    } catch(_) {} // non-fatal if D1 fails — URL is still returned
+  }
+
+  return json({ ok: true, url, key, slot: slotKey || null });
 }
 
 // ─── Site Image Override Handlers ───────────────────────────────────────────
