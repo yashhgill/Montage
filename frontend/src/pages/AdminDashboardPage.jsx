@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Lock, FileText, Package, Gamepad2, Mail, Camera, LayoutDashboard, ExternalLink, ChevronRight
+  Lock, FileText, Package, Gamepad2, Mail, Camera, LayoutDashboard, ExternalLink, ChevronRight, Image
 } from "lucide-react";
 
 const TOOLS = [
@@ -40,6 +40,15 @@ const TOOLS = [
     icon: Mail,
     path: "/admin/newsletter",
     color: "neon-yellow",
+  },
+  {
+    id: "site-photos",
+    title: "Site Photos",
+    subtitle: "Swap images on the live website",
+    description: "Change any photo on the homepage — hero slides, service photos, experience grid, gallery — instantly, no redeploy needed.",
+    icon: Image,
+    path: "/admin/site-photos",
+    color: "neon-cyan",
   },
   {
     id: "photobooth",
