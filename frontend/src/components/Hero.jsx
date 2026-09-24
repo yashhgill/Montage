@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
 import { heroSlides, waLink } from "../data/content";
+import { useImageOverrides } from "../context/ImageOverridesContext";
 
 const ROTATING = ["unforgettable.", "electric.", "legendary.", "iconic."];
 
 export default function Hero() {
+  const { resolve } = useImageOverrides();
+  const resolvedSlides = resolvedSlides.map((url, i) => resolve(`hero.${i}`, url));
   const [active, setActive] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
   const [loaded, setLoaded] = useState(false);
