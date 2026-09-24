@@ -27,6 +27,8 @@ function ExperienceCard({ item, i }) {
 }
 
 export default function Experience()  {
+  const { resolve } = useImageOverrides();
+  const resolvedExperience = experience.map((item, i) => ({ ...item, src: resolve(`experience.${i}`, item.src) }));
   const [headRef, headVisible] = useScrollReveal();
   return (
     <section id="experience" data-testid="experience-section"
