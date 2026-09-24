@@ -1,6 +1,7 @@
 import { useRef, useState, useEffect } from "react";
 import { ArrowUpRight, Flame } from "lucide-react";
 import { services } from "../data/content";
+import { useImageOverrides } from "../context/ImageOverridesContext";
 
 const ACCENT_MAP = {
   red: "text-neon-red", yellow: "text-neon-yellow", lime: "text-neon-lime",
@@ -116,7 +117,7 @@ export default function Services({ onOpen }) {
           </h2>
         </div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
-          {services.map((s, idx) => (
+          {resolvedServices.map((s, idx) => (
             <ServiceCard key={s.key} s={s} idx={idx} onOpen={onOpen} />
           ))}
         </div>
