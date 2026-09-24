@@ -72,6 +72,9 @@ export async function onRequest(context) {
     if (method === "POST" && head === "admin" && route[1] === "preview-invoice") return handlePreviewInvoice(request, env);
     // Custom packages
     if (method === "POST" && head === "admin" && route[1] === "custom-package") return handleCreateCustomPackage(request, env);
+    // Quotation
+    if (method === "POST" && head === "admin" && route[1] === "quotation") return handleAdminQuotation(request, env);
+    if (method === "POST" && head === "admin" && route[1] === "preview-quotation") return handlePreviewQuotation(request, env);
     // Site image overrides
     if (method === "GET"  && head === "site-images") return handleGetSiteImages(request, env);
     if (method === "POST" && head === "admin" && route[1] === "site-images") return handleSetSiteImage(request, env);
@@ -936,6 +939,223 @@ function bytesToBase64(bytes) {
     bin += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
   }
   return btoa(bin);
+}
+
+// ─── Quotation Handlers ──────────────────────────────────────────────────────
+
+async function buildQuotationPdf(env, rec) {
+  const pdf = await PDFDocument.create();
+  const page = pdf.addPage([595, 842]);
+  const W = 595, H = 842, M = 44;
+  const font = await pdf.embedFont(StandardFonts.Helvetica);
+  const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+  const black = rgb(0.08,0.08,0.1), grey = rgb(0.35,0.35,0.38), gold = rgb(0.72,0.58,0.18);
+
+  const hasRateQty = (rec.items||[]).some((it) => it.rate != null && it.qty != null);
+  const DESC_X = M+28, AMOUNT_X = W-M;
+  const RATE_X = hasRateQty ? W-M-178 : null;
+  const QTY_X  = hasRateQty ? W-M-98  : null;
+  const DESC_MAX = (hasRateQty ? RATE_X-14 : AMOUNT_X-88) - DESC_X;
+
+  const items = rec.items || [];
+  const subtotal = items.reduce((s,it)=>s+(Number(it.amount)||0),0);
+
+  // ── Line spacing auto-scale ──
+  const LINE_SPACINGS=[11,10,9,8.5,8], FONT_SIZES=[9,8.5,8,7.5,7];
+  let LS=11, FS=9, FS_SM=8.5;
+  const addrLines=(rec.bill_to_address||[]).length;
+  const HEADER_H=194+addrLines*12;
+  const FOOTER_H=(rec.remarks?14+String(rec.remarks).split("\n").length*12:0)+80;
+  const AVAIL=H-HEADER_H-FOOTER_H;
+  let estLines=0;
+  items.forEach((item)=>{
+    if(item.heading) estLines+=Math.ceil((item.heading.length||1)/60)+1;
+    const blocks=parseItemBlocks(item.lines);
+    blocks.forEach((b)=>{
+      if(b.heading) estLines+=Math.ceil((b.heading.length||1)/60)+1;
+      b.bullets.forEach((bl)=>{ estLines+=Math.ceil((bl.length||1)/60); });
+      estLines+=0.4;
+    });
+    estLines+=1;
+  });
+  for(let i=0;i<LINE_SPACINGS.length;i++){
+    if(estLines*LINE_SPACINGS[i]<=AVAIL){LS=LINE_SPACINGS[i];FS=FONT_SIZES[i];FS_SM=Math.max(7,FONT_SIZES[i]-0.5);break;}
+  }
+
+  const hline=(y,thick=1,col=rgb(0.75,0.75,0.75),x0=M,x1=W-M)=>page.drawLine({start:{x:x0,y},end:{x:x1,y},thickness:thick,color:col});
+  const centerText=(text,y,size,f=font,color=black)=>{const w=f.widthOfTextAtSize(text,size);page.drawText(text,{x:(W-w)/2,y,size,font:f,color});};
+  const rightText=(text,y,xRight,size,f=font,color=black)=>{const w=f.widthOfTextAtSize(text,size);page.drawText(text,{x:xRight-w,y,size,font:f,color});};
+
+  // ── Header ──
+  let y=H-42;
+  try{
+    const imgRes=await fetch("https://pub-b849c3b830534eeea60b6844defeeb9f.r2.dev/images/montage-gold-logo.png");
+    if(imgRes.ok){const bytes=new Uint8Array(await imgRes.arrayBuffer());const png=await pdf.embedPng(bytes);const sc=png.scaleToFit(90,56);page.drawImage(png,{x:M,y:y-38,width:sc.width,height:sc.height});}
+  }catch(_){}
+  centerText("MONTAGE EVENT MANAGEMENT (MA0293072-D)",y-2,11.5,bold,black);
+  centerText("NO. 20, JALAN NAGASARI 36/9A, DESA ALAM, SEKSYEN 36,",y-14,8,font,grey);
+  centerText("40470 SHAH ALAM, SELANGOR",y-24,8,font,grey);
+  centerText("TEL: 013-344 6521   /   EMAIL: montage.eventmanagement@gmail.com",y-34,8,font,grey);
+  y-=44; hline(y); y-=20;
+  centerText("QUOTATION",y,20,bold,black); y-=28;
+
+  // ── Bill To + meta ──
+  const billToTop=y;
+  page.drawText("TO:",{x:M,y,size:9,font:bold,color:black});
+  page.drawText(sanitizePdfText(rec.bill_to_name||rec.name||""),{x:M+28,y,size:9.5,font:bold,color:black});
+  let addrY=y-10;
+  for(const line of (rec.bill_to_address||[])){page.drawText(sanitizePdfText(line),{x:M,y:addrY,size:8.5,font,color:grey});addrY-=10;}
+  let metaY=billToTop;
+  rightText(sanitizePdfText(`QUOTATION NO :  ${rec.quote_no||"QT-"+Date.now().toString(36).toUpperCase().slice(-6)}`),metaY,W-M,9,bold,black);metaY-=12;
+  rightText(sanitizePdfText(`DATE :  ${rec.date||new Date().toLocaleDateString("en-GB")}`),metaY,W-M,9,font,black);metaY-=12;
+  if(rec.valid_until) rightText(sanitizePdfText(`VALID UNTIL :  ${rec.valid_until}`),metaY,W-M,9,font,black);
+  y=Math.min(addrY,metaY)-8; hline(y); y-=13;
+
+  // ── Table header ──
+  page.drawText("ITEM",{x:M,y,size:8.5,font:bold,color:black});
+  page.drawText("DESCRIPTION",{x:DESC_X,y,size:8.5,font:bold,color:black});
+  if(hasRateQty){rightText("RATE",y,RATE_X+38,8.5,bold,black);rightText("QTY",y,QTY_X+22,8.5,bold,black);}
+  rightText("AMOUNT (RM)",y,AMOUNT_X,8.5,bold,black);
+  y-=4; hline(y,1.2,black); y-=LS;
+
+  // ── Items ──
+  items.forEach((item,idx)=>{
+    const blocks=parseItemBlocks(item.lines);
+    const hasSubitems=blocks.some((b)=>b.bullets.length>0);
+    const rowTop=y; let ly=y;
+    if(!hasSubitems) page.drawText(String(idx+1)+".",{x:M,y,size:FS,font,color:black});
+    if(item.heading){page.drawText(sanitizePdfText(item.heading),{x:DESC_X,y:ly,size:FS,font:bold,color:black});ly-=LS;}
+    if(hasSubitems){
+      let subNum=1;
+      for(const block of blocks){
+        if(block.heading){
+          if(block.bullets.length>0){page.drawText(subNum+".",{x:M,y:ly,size:FS,font:bold,color:black});wrapText(sanitizePdfText(block.heading),bold,FS,DESC_MAX).forEach((wl)=>{page.drawText(wl,{x:DESC_X,y:ly,size:FS,font:bold,color:black});ly-=LS;});subNum++;}
+          else{wrapText(sanitizePdfText(block.heading),bold,FS,DESC_MAX).forEach((wl)=>{page.drawText(wl,{x:DESC_X,y:ly,size:FS,font:bold,color:black});ly-=LS;});}
+        }
+        for(const bullet of block.bullets){wrapText(bullet,font,FS_SM,DESC_MAX-14).forEach((wl,i)=>{page.drawText((i===0?"\u2022 ":"  ")+wl,{x:DESC_X+4,y:ly,size:FS_SM,font,color:grey});ly-=LS;});}
+        ly-=Math.round(LS*0.3);
+      }
+    } else {
+      blocks.forEach((block)=>{if(!block.heading)return;wrapText(block.heading,font,FS_SM,DESC_MAX).forEach((wl)=>{page.drawText(wl,{x:DESC_X,y:ly,size:FS_SM,font,color:grey});ly-=LS;});ly-=2;});
+    }
+    if(hasRateQty){rightText(fmtMoney(item.rate),rowTop,RATE_X+38,FS,font,black);rightText(String(item.qty),rowTop,QTY_X+22,FS,font,black);}
+    rightText(fmtMoney(item.amount),rowTop,AMOUNT_X,FS,font,black);
+    y=ly-Math.round(LS*0.6);
+  });
+
+  hline(y); y-=12;
+
+  if(rec.remarks&&String(rec.remarks).trim()){
+    page.drawText("REMARKS",{x:M,y,size:8,font:bold,color:gold});y-=11;
+    for(const rawLine of sanitizePdfText(String(rec.remarks)).split("\n")){
+      if(!rawLine.trim()){y-=5;continue;}
+      for(const wl of wrapText(rawLine,font,8.5,W-2*M)){page.drawText(wl,{x:M,y,size:8.5,font,color:black});y-=11;}
+    }
+    y-=8;
+  }
+
+  rightText("ESTIMATED TOTAL (MYR):",y,AMOUNT_X-88,10.5,bold,black);
+  rightText(fmtMoney(subtotal),y,AMOUNT_X,11.5,bold,black);y-=7;
+  hline(y,1.2,black);y-=13;
+  const wordsLabel="RINGGIT MALAYSIA: ";
+  page.drawText(wordsLabel,{x:M,y,size:8.5,font,color:black});
+  const wordsX=M+font.widthOfTextAtSize(wordsLabel,8.5);
+  let wy=y;
+  wrapText(ringgitWords(subtotal),bold,8.5,W-M-wordsX).forEach((wl,i)=>{page.drawText(wl,{x:i===0?wordsX:M,y:wy,size:8.5,font:bold,color:black});wy-=11;});
+  y=wy-14;
+  page.drawText("This is a computer generated quotation. Prices are estimates and subject to confirmation.",{x:M,y,size:7.5,font,color:grey});y-=9;
+  page.drawText("To confirm your booking, please contact us to arrange a deposit.",{x:M,y,size:7.5,font,color:grey});y-=9;
+  page.drawText("Bank :  RHB BANK BERHAD",{x:M,y,size:7.5,font:bold,color:black});y-=9;
+  page.drawText("ACC No. :  21242400046344",{x:M,y,size:7.5,font:bold,color:black});
+
+  return await pdf.save();
+}
+
+// POST /api/bookings/admin/quotation — generate and email a quotation PDF
+async function handleAdminQuotation(request, env) {
+  if (!checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
+  let b; try { b = await request.json(); } catch { return json({ detail: "Invalid JSON" }, 400); }
+
+  const billToName = String(b.bill_to_name || b.name || "").trim().slice(0,120);
+  const billToAddress = String(b.bill_to_address || "").split("\n").map(s=>s.trim()).filter(Boolean);
+  const toEmail = String(b.email || "").trim().slice(0,200);
+  const validUntil = String(b.valid_until || "").trim();
+  const remarks = String(b.remarks || "").trim();
+  const cc = String(b.cc || "").trim();
+  const bcc = String(b.bcc || "").trim();
+  const rawItems = Array.isArray(b.items) ? b.items : [];
+  const items = rawItems.map((it)=>{
+    const rate=it.rate!=null&&it.rate!==""?Number(it.rate):null;
+    const qty=it.qty!=null&&it.qty!==""?Number(it.qty):null;
+    const amount=rate!=null&&qty!=null?rate*qty:(Number(it.amount)||0);
+    return {heading:String(it.heading||"").trim(),lines:String(it.details||"").split("\n").map(l=>l.trim()),rate,qty,amount};
+  }).filter(it=>it.heading||it.amount>0);
+
+  if (!billToName) return json({ detail: "Bill To name is required" }, 400);
+  if (!toEmail) return json({ detail: "Customer email is required" }, 400);
+  if (items.length === 0) return json({ detail: "Add at least one line item" }, 400);
+  const subtotal = items.reduce((s,it)=>s+(Number(it.amount)||0),0);
+  if (subtotal <= 0) return json({ detail: "Total must be greater than zero" }, 400);
+
+  const quoteNo = "QT" + new Date().toISOString().slice(2,10).replace(/-/g,"") + "-" + Math.random().toString(36).slice(2,5).toUpperCase();
+  const dateStr = new Date().toLocaleDateString("en-GB");
+  const rec = { bill_to_name:billToName, bill_to_address:billToAddress, email:toEmail, date:dateStr, valid_until:validUntil, quote_no:quoteNo, items, remarks, cc, bcc };
+
+  let emailSent = false;
+  try {
+    const pdfBytes = await buildQuotationPdf(env, rec);
+    const pdfB64 = bytesToBase64(pdfBytes);
+    const parseAddrList = (v)=>String(v||"").split(/[,\n]/).map(s=>s.trim()).filter(Boolean);
+    const ccList = parseAddrList(cc);
+    const bccList = Array.from(new Set([env.GMAIL_SENDER,...parseAddrList(bcc)].filter(Boolean)));
+    const subtotalFmt = Number(subtotal).toLocaleString("en-MY",{minimumFractionDigits:2});
+    const summaryItems = items.slice(0,3).map(it=>it.heading).filter(Boolean).join(", ");
+    const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#0A0A12;color:#fff;padding:32px;border-radius:12px">
+<h1 style="color:#00F0FF;margin:0 0 4px">Your Quotation from Montage</h1>
+<p style="color:#bbb;margin:0 0 24px">Hi ${billToName}, please find your quotation attached.</p>
+<div style="background:#14141f;border-radius:10px;padding:20px;margin-bottom:20px">
+<p style="margin:0 0 10px"><b style="color:#FF2DD4">Quotation No:</b> ${quoteNo}</p>
+<p style="margin:0 0 10px"><b>For:</b> ${summaryItems||"Event Services"}</p>
+${validUntil?`<p style="margin:0 0 10px"><b>Valid Until:</b> ${validUntil}</p>`:""}
+<p style="margin:0"><b>Estimated Total:</b> RM ${subtotalFmt}</p>
+</div>
+<p style="color:#999;font-size:13px">The attached PDF has the full itemised breakdown. To confirm your booking, reply to this email or contact us on WhatsApp at 013-344 6521.</p>
+<p style="color:#777;font-size:12px;margin-top:24px">Montage Event Management &middot; Shah Alam, Malaysia</p>
+</div>`;
+    const token = await getGoogleAccessToken(env);
+    const boundary = "montage_"+Math.random().toString(36).slice(2);
+    const fileName = quoteNo.replace(/[^a-zA-Z0-9]/g,"-")+".pdf";
+    let raw = `From: Montage Events <${env.GMAIL_SENDER}>\r\nTo: ${toEmail}\r\n`+(ccList.length?`Cc: ${ccList.join(", ")}\r\n`:"")+`Bcc: ${bccList.join(", ")}\r\nSubject: Quotation ${quoteNo} from Montage Event Management\r\nMIME-Version: 1.0\r\nContent-Type: multipart/mixed; boundary="${boundary}"\r\n\r\n--${boundary}\r\nContent-Type: text/html; charset=UTF-8\r\n\r\n${html}\r\n--${boundary}\r\nContent-Type: application/pdf; name="${fileName}"\r\nContent-Disposition: attachment; filename="${fileName}"\r\nContent-Transfer-Encoding: base64\r\n\r\n${pdfB64.replace(/(.{76})/g,"$1\r\n")}\r\n--${boundary}--`;
+    const res = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send",{method:"POST",headers:{authorization:`Bearer ${token}`,"content-type":"application/json"},body:JSON.stringify({raw:b64urlFromString(raw)})});
+    emailSent = res.ok;
+  } catch(e) {}
+
+  return json({ ok: true, quote_no: quoteNo, email_sent: emailSent });
+}
+
+// POST /api/bookings/admin/preview-quotation — generate PDF without sending
+async function handlePreviewQuotation(request, env) {
+  if (!checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
+  let b; try { b = await request.json(); } catch { return json({ detail: "Invalid JSON" }, 400); }
+  const billToName = String(b.bill_to_name || b.name || "Customer").trim();
+  const billToAddress = String(b.bill_to_address || "").split("\n").map(s=>s.trim()).filter(Boolean);
+  const validUntil = String(b.valid_until || "").trim();
+  const remarks = String(b.remarks || "").trim();
+  const rawItems = Array.isArray(b.items) ? b.items : [];
+  const items = rawItems.map((it)=>{
+    const rate=it.rate!=null&&it.rate!==""?Number(it.rate):null;
+    const qty=it.qty!=null&&it.qty!==""?Number(it.qty):null;
+    const amount=rate!=null&&qty!=null?rate*qty:(Number(it.amount)||0);
+    return {heading:String(it.heading||"").trim(),lines:String(it.details||"").split("\n").map(l=>l.trim()),rate,qty,amount};
+  }).filter(it=>it.heading||it.amount>0);
+  if (items.length === 0) return json({ detail: "Add at least one line item to preview" }, 400);
+  try {
+    const rec = { bill_to_name:billToName+"  (PREVIEW — NOT YET SENT)", bill_to_address:billToAddress, date:new Date().toLocaleDateString("en-GB"), valid_until:validUntil, quote_no:"QT-PREVIEW", items, remarks };
+    const pdfBytes = await buildQuotationPdf(env, rec);
+    return json({ ok: true, pdf_base64: bytesToBase64(pdfBytes) });
+  } catch(e) {
+    return json({ detail: "Could not generate preview." }, 500);
+  }
 }
 
 // ─── Site Image Override Handlers ───────────────────────────────────────────
