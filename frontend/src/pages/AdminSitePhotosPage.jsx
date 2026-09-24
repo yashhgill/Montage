@@ -1,120 +1,124 @@
-import { useState, useEffect } from "react";
-import { Lock, Loader2, ImageIcon, Upload, RotateCcw, CheckCircle2, ChevronDown, ChevronUp } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
 import {
-  heroSlides, services, experience, galleryPhotos,
+  Lock, ImageIcon, Upload, RotateCcw, CheckCircle2,
+  ChevronDown, ChevronUp, Loader2, Film, X
+} from "lucide-react";
+import {
+  heroSlides, services, experience, galleryPhotos, galleryVideos,
 } from "../data/content";
 
 const API = "/api";
 
-// Build the full map of every image slot on the site with a key, label, and default URL
-function buildImageSlots() {
+function buildSlots() {
   const slots = [];
-
-  // Hero slides
   heroSlides.forEach((url, i) => {
-    slots.push({ key: `hero.${i}`, section: "Hero Slideshow", label: `Hero slide ${i + 1}`, defaultUrl: url });
+    slots.push({ key: `hero.${i}`, section: "Hero Slideshow", label: `Hero slide ${i + 1}`, defaultUrl: url, type: "image" });
   });
-
-  // Services — heroBg + photos per service
   services.forEach((svc) => {
-    if (svc.heroBg) {
-      slots.push({ key: `service.${svc.key}.hero`, section: `Service — ${svc.title}`, label: `${svc.title} hero background`, defaultUrl: svc.heroBg });
-    }
+    if (svc.heroBg) slots.push({ key: `service.${svc.key}.hero`, section: `Service — ${svc.title}`, label: `${svc.title}: hero background`, defaultUrl: svc.heroBg, type: "image" });
     svc.photos.forEach((ph, i) => {
-      if (ph.src) {
-        slots.push({ key: `service.${svc.key}.photo.${i}`, section: `Service — ${svc.title}`, label: `${svc.title}: ${ph.caption}`, defaultUrl: ph.src });
-      }
+      if (ph.src) slots.push({ key: `service.${svc.key}.photo.${i}`, section: `Service — ${svc.title}`, label: `${svc.title}: ${ph.caption}`, defaultUrl: ph.src, type: "image" });
+    });
+    (svc.videos || []).forEach((url, i) => {
+      if (url) slots.push({ key: `service.${svc.key}.video.${i}`, section: `Service — ${svc.title}`, label: `${svc.title}: video ${i + 1}`, defaultUrl: url, type: "video" });
     });
   });
-
-  // Experience zone
   experience.forEach((item, i) => {
-    slots.push({ key: `experience.${i}`, section: "Experience Zone (Homepage bento grid)", label: `${item.title}`, defaultUrl: item.src });
+    slots.push({ key: `experience.${i}`, section: "Experience Zone", label: item.title, defaultUrl: item.src, type: "image" });
   });
-
-  // Gallery photos
   galleryPhotos.forEach((url, i) => {
-    slots.push({ key: `gallery.photo.${i}`, section: "Gallery", label: `Gallery photo ${i + 1}`, defaultUrl: url });
+    slots.push({ key: `gallery.photo.${i}`, section: "Gallery Photos", label: `Photo ${i + 1}`, defaultUrl: url, type: "image" });
   });
-
+  galleryVideos.forEach((v, i) => {
+    slots.push({ key: `gallery.video.${i}`, section: "Gallery Videos", label: `Gallery video ${i + 1}`, defaultUrl: v.src, type: "video" });
+    slots.push({ key: `gallery.video.poster.${i}`, section: "Gallery Videos", label: `Gallery video ${i + 1} — thumbnail`, defaultUrl: v.poster, type: "image" });
+  });
   return slots;
 }
 
-const ALL_SLOTS = buildImageSlots();
+const ALL_SLOTS = buildSlots();
 const SECTIONS = [...new Set(ALL_SLOTS.map((s) => s.section))];
 
 export default function AdminSitePhotosPage() {
   const [adminKey, setAdminKey] = useState(() => sessionStorage.getItem("montage_admin_key") || "");
   const [authed, setAuthed] = useState(!!sessionStorage.getItem("montage_admin_key"));
   const [authError, setAuthError] = useState("");
-
-  const [overrides, setOverrides] = useState({});       // key → url
+  const [overrides, setOverrides] = useState({});
   const [loading, setLoading] = useState(true);
-  const [editing, setEditing] = useState(null);          // slot key being edited
-  const [inputUrl, setInputUrl] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(null);
   const [openSections, setOpenSections] = useState({ [SECTIONS[0]]: true });
-
-  const authHeaders = { headers: { "x-admin-key": adminKey } };
+  const [slotState, setSlotState] = useState({});
+  const fileInputRef = useRef(null);
+  const activeSlotRef = useRef(null);
 
   const login = () => {
     if (!adminKey.trim()) { setAuthError("Enter your admin key."); return; }
     sessionStorage.setItem("montage_admin_key", adminKey.trim());
     setAuthed(true); setAuthError("");
-    fetchOverrides();
   };
 
   const fetchOverrides = () => {
     setLoading(true);
     fetch(`${API}/bookings/site-images`)
       .then((r) => r.json())
-      .then((data) => { setOverrides(data || {}); setLoading(false); })
+      .then((d) => { setOverrides(d || {}); setLoading(false); })
       .catch(() => setLoading(false));
   };
 
   useEffect(() => { if (authed) fetchOverrides(); }, [authed]);
 
-  const toggleSection = (s) => setOpenSections((prev) => ({ ...prev, [s]: !prev[s] }));
+  const toggleSection = (s) => setOpenSections((p) => ({ ...p, [s]: !p[s] }));
+  const setSS = (key, patch) => setSlotState((p) => ({ ...p, [key]: { ...p[key], ...patch } }));
 
-  const startEdit = (slot) => {
-    setEditing(slot.key);
-    setInputUrl(overrides[slot.key] || slot.defaultUrl || "");
-    setSaved(null);
+  const triggerUpload = (slot) => {
+    activeSlotRef.current = slot;
+    fileInputRef.current.accept = slot.type === "video"
+      ? "video/mp4,video/quicktime,video/webm,image/jpeg,image/png,image/webp"
+      : "image/jpeg,image/png,image/webp,image/gif";
+    fileInputRef.current.value = "";
+    fileInputRef.current.click();
   };
 
-  const save = async (slot) => {
-    if (!inputUrl.trim() || !inputUrl.startsWith("http")) return;
-    setSaving(true);
+  const handleFileChosen = async (e) => {
+    const file = e.target.files?.[0];
+    const slot = activeSlotRef.current;
+    if (!file || !slot) return;
+    const localUrl = URL.createObjectURL(file);
+    setSS(slot.key, { uploading: true, saved: false, error: null, preview: localUrl });
     try {
-      const res = await fetch(`${API}/bookings/admin/site-images`, {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("slot", slot.key);
+      const res = await fetch(`${API}/bookings/admin/upload-media`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-admin-key": adminKey },
-        body: JSON.stringify({ key: slot.key, url: inputUrl.trim(), label: slot.label }),
+        headers: { "x-admin-key": adminKey },
+        body: fd,
       });
-      if (res.ok) {
-        setOverrides((prev) => ({ ...prev, [slot.key]: inputUrl.trim() }));
-        setSaved(slot.key); setEditing(null);
-        setTimeout(() => setSaved(null), 2500);
-      }
-    } finally { setSaving(false); }
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Upload failed");
+      setOverrides((p) => ({ ...p, [slot.key]: data.url }));
+      setSS(slot.key, { uploading: false, saved: true, preview: data.url });
+      setTimeout(() => setSS(slot.key, { saved: false }), 3000);
+    } catch (err) {
+      setSS(slot.key, { uploading: false, error: err.message, preview: null });
+    }
   };
 
   const reset = async (slot) => {
-    if (!window.confirm(`Reset "${slot.label}" to the default image?`)) return;
+    if (!window.confirm(`Reset "${slot.label}" back to the original?`)) return;
     await fetch(`${API}/bookings/admin/site-images`, {
       method: "DELETE",
       headers: { "Content-Type": "application/json", "x-admin-key": adminKey },
       body: JSON.stringify({ key: slot.key }),
     });
-    setOverrides((prev) => { const n = { ...prev }; delete n[slot.key]; return n; });
+    setOverrides((p) => { const n = { ...p }; delete n[slot.key]; return n; });
+    setSS(slot.key, { preview: null, saved: false, error: null });
   };
 
   if (!authed) {
     return (
       <div className="min-h-screen bg-[#050508] text-white grid place-items-center px-5">
         <div className="w-full max-w-sm">
-          <p className="font-display font-black text-2xl text-center mb-6">MONTAGE<span className="text-neon-cyan">.</span> <span className="text-white/40 text-base font-normal">Site Photos</span></p>
+          <p className="font-display font-black text-2xl text-center mb-6">MONTAGE<span className="text-neon-cyan">.</span> <span className="text-white/40 text-base font-normal">Site Media</span></p>
           <div className="rounded-2xl border border-white/12 bg-white/[0.03] p-6">
             <p className="flex items-center gap-2 text-sm font-bold text-neon-cyan mb-4"><Lock size={16} /> Staff access</p>
             <input type="password" value={adminKey} onChange={(e) => setAdminKey(e.target.value)}
@@ -130,20 +134,26 @@ export default function AdminSitePhotosPage() {
 
   return (
     <div className="min-h-screen bg-[#050508] text-white">
+      <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileChosen} />
+
       <div className="border-b border-white/10 bg-black/60 backdrop-blur-xl sticky top-0 z-30">
         <div className="max-w-4xl mx-auto px-5 py-4 flex items-center gap-2">
           <ImageIcon size={18} className="text-neon-cyan" />
-          <span className="font-display font-black tracking-tight text-lg">MONTAGE<span className="text-neon-cyan">.</span> <span className="text-white/40 text-sm font-normal">Site Photos</span></span>
+          <span className="font-display font-black tracking-tight text-lg">
+            MONTAGE<span className="text-neon-cyan">.</span>{" "}
+            <span className="text-white/40 text-sm font-normal">Site Photos &amp; Videos</span>
+          </span>
         </div>
       </div>
 
       <div className="max-w-4xl mx-auto px-5 py-8">
         <p className="text-white/50 text-sm mb-2">
-          Swap any photo on the live website. Paste a direct image URL (from R2 or any public HTTPS link) — the change goes live immediately without a redeploy.
+          Tap <span className="text-neon-cyan font-semibold">Upload photo</span> or <span className="text-neon-cyan font-semibold">Upload video</span> next to any slot — pick a file from your phone or computer, and it goes live on the website instantly. No redeploy, no Cloudflare dashboard needed.
         </p>
-        <p className="text-white/30 text-xs mb-8">
-          To upload a new photo to R2: Cloudflare Dashboard → R2 → montage-images → Upload, then copy the public URL here.
-        </p>
+
+        <div className="rounded-xl border border-neon-yellow/20 bg-neon-yellow/5 px-4 py-3 text-xs text-neon-yellow mb-8">
+          <strong>One-time setup required:</strong> Add <code className="text-white bg-white/10 px-1 rounded">SITE_IMAGES_BUCKET</code> as an R2 binding in Cloudflare Pages → Settings → Bindings, pointing to the public images bucket. Uploads will return a "bucket binding not configured" error until this is done.
+        </div>
 
         {loading ? (
           <div className="flex items-center gap-2 text-white/40"><Loader2 size={16} className="animate-spin" /> Loading…</div>
@@ -155,77 +165,87 @@ export default function AdminSitePhotosPage() {
               const isOpen = !!openSections[section];
               return (
                 <div key={section} className="rounded-2xl border border-white/10 overflow-hidden">
-                  <button
-                    onClick={() => toggleSection(section)}
-                    className="w-full flex items-center justify-between px-5 py-4 bg-white/[0.03] hover:bg-white/[0.06] transition-colors text-left"
-                  >
+                  <button onClick={() => toggleSection(section)}
+                    className="w-full flex items-center justify-between px-5 py-4 bg-white/[0.03] hover:bg-white/[0.06] transition-colors text-left">
                     <div>
                       <p className="font-bold text-white">{section}</p>
                       <p className="text-xs text-white/40 mt-0.5">
-                        {slotsInSection.length} image{slotsInSection.length !== 1 ? "s" : ""}
-                        {customCount > 0 && <span className="text-neon-cyan ml-2">· {customCount} custom</span>}
+                        {slotsInSection.length} item{slotsInSection.length !== 1 ? "s" : ""}
+                        {customCount > 0 && <span className="text-neon-cyan ml-2">· {customCount} customised</span>}
                       </p>
                     </div>
-                    {isOpen ? <ChevronUp size={16} className="text-white/40" /> : <ChevronDown size={16} className="text-white/40" />}
+                    {isOpen ? <ChevronUp size={16} className="text-white/40 shrink-0" /> : <ChevronDown size={16} className="text-white/40 shrink-0" />}
                   </button>
 
                   {isOpen && (
                     <div className="divide-y divide-white/5">
                       {slotsInSection.map((slot) => {
-                        const activeUrl = overrides[slot.key] || slot.defaultUrl;
+                        const ss = slotState[slot.key] || {};
+                        const activeUrl = ss.preview || overrides[slot.key] || slot.defaultUrl;
                         const isCustom = !!overrides[slot.key];
-                        const isEditing = editing === slot.key;
-                        const wasSaved = saved === slot.key;
+                        const isVideo = slot.type === "video";
+
                         return (
                           <div key={slot.key} className="px-5 py-4 flex gap-4 items-start">
-                            {/* Preview thumbnail */}
-                            <div className="shrink-0 w-20 h-14 rounded-lg overflow-hidden bg-white/5 border border-white/10">
-                              {activeUrl ? (
-                                <img src={activeUrl} alt={slot.label} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = "none"; }} />
+                            {/* Thumbnail */}
+                            <div className="shrink-0 w-24 h-16 rounded-xl overflow-hidden bg-white/5 border border-white/10 relative">
+                              {ss.uploading && (
+                                <div className="absolute inset-0 bg-black/70 grid place-items-center z-10">
+                                  <Loader2 size={16} className="animate-spin text-neon-cyan" />
+                                </div>
+                              )}
+                              {activeUrl && isVideo ? (
+                                <video src={activeUrl} className="w-full h-full object-cover" muted playsInline preload="metadata" />
+                              ) : activeUrl ? (
+                                <img src={activeUrl} alt={slot.label} className="w-full h-full object-cover" />
                               ) : (
-                                <div className="w-full h-full grid place-items-center text-white/20"><ImageIcon size={18} /></div>
+                                <div className="w-full h-full grid place-items-center text-white/20">
+                                  {isVideo ? <Film size={18} /> : <ImageIcon size={18} />}
+                                </div>
                               )}
                             </div>
 
+                            {/* Info + actions */}
                             <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-1">
-                                <p className="text-sm font-semibold text-white truncate">{slot.label}</p>
-                                {isCustom && <span className="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-neon-cyan/15 text-neon-cyan">custom</span>}
-                                {wasSaved && <span className="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-neon-lime/15 text-neon-lime flex items-center gap-1"><CheckCircle2 size={10} /> saved</span>}
+                              <div className="flex items-center flex-wrap gap-2 mb-1.5">
+                                <p className="text-sm font-semibold text-white/90 truncate">{slot.label}</p>
+                                {isVideo && (
+                                  <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded-full bg-white/8 text-white/45 flex items-center gap-1">
+                                    <Film size={9} /> video
+                                  </span>
+                                )}
+                                {isCustom && (
+                                  <span className="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-neon-cyan/15 text-neon-cyan">
+                                    custom
+                                  </span>
+                                )}
+                                {ss.saved && (
+                                  <span className="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-neon-lime/15 text-neon-lime flex items-center gap-1">
+                                    <CheckCircle2 size={9} /> uploaded
+                                  </span>
+                                )}
                               </div>
 
-                              {isEditing ? (
-                                <div className="flex gap-2 items-center mt-2">
-                                  <input
-                                    value={inputUrl}
-                                    onChange={(e) => setInputUrl(e.target.value)}
-                                    placeholder="https://pub-xxx.r2.dev/images/photo.jpg"
-                                    autoFocus
-                                    className="flex-1 bg-white/[0.06] border border-neon-cyan/40 rounded-lg px-3 py-2 text-xs outline-none focus:border-neon-cyan"
-                                  />
-                                  <button onClick={() => save(slot)} disabled={saving}
-                                    className="shrink-0 px-3 py-2 rounded-lg bg-neon-cyan text-black text-xs font-bold disabled:opacity-50">
-                                    {saving ? <Loader2 size={12} className="animate-spin" /> : "Save"}
-                                  </button>
-                                  <button onClick={() => setEditing(null)}
-                                    className="shrink-0 px-3 py-2 rounded-lg border border-white/15 text-xs text-white/60">
-                                    Cancel
-                                  </button>
-                                </div>
-                              ) : (
-                                <div className="flex items-center gap-2 mt-1">
-                                  <button onClick={() => startEdit(slot)}
-                                    className="inline-flex items-center gap-1.5 text-xs text-neon-cyan hover:underline font-semibold">
-                                    <Upload size={11} /> Change photo
-                                  </button>
-                                  {isCustom && (
-                                    <button onClick={() => reset(slot)}
-                                      className="inline-flex items-center gap-1.5 text-xs text-white/35 hover:text-neon-pink">
-                                      <RotateCcw size={11} /> Reset to default
-                                    </button>
-                                  )}
-                                </div>
+                              {ss.error && (
+                                <p className="text-xs text-neon-pink mb-2 flex items-start gap-1">
+                                  <X size={11} className="mt-0.5 shrink-0" /> {ss.error}
+                                </p>
                               )}
+
+                              <div className="flex items-center gap-4 flex-wrap">
+                                <button onClick={() => triggerUpload(slot)} disabled={ss.uploading}
+                                  className="inline-flex items-center gap-1.5 text-xs text-neon-cyan hover:underline font-semibold disabled:opacity-40">
+                                  {ss.uploading
+                                    ? <><Loader2 size={11} className="animate-spin" /> Uploading…</>
+                                    : <><Upload size={11} /> {isVideo ? "Upload video" : "Upload photo"}</>}
+                                </button>
+                                {isCustom && (
+                                  <button onClick={() => reset(slot)}
+                                    className="inline-flex items-center gap-1.5 text-xs text-white/30 hover:text-neon-pink transition-colors">
+                                    <RotateCcw size={11} /> Reset to original
+                                  </button>
+                                )}
+                              </div>
                             </div>
                           </div>
                         );
