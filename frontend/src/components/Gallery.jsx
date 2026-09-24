@@ -1,11 +1,18 @@
 import { useState } from "react";
 import { Play, X } from "lucide-react";
 import { galleryPhotos, galleryVideos } from "../data/content";
+import { useImageOverrides } from "../context/ImageOverridesContext";
 
 export default function Gallery() {
+  const { resolve } = useImageOverrides();
+  const resolvedPhotos = galleryPhotos.map((url, i) => resolve(`gallery.photo.${i}`, url));
+  const resolvedVideos = resolvedVideos.map((v, i) => ({
+    ...v,
+    poster: resolve(`gallery.video.poster.${i}`, v.poster),
+  }));
   const [lightbox, setLightbox] = useState(null); // { type, src }
   const [visibleCount, setVisibleCount] = useState(8);
-  const visiblePhotos = galleryPhotos.slice(0, visibleCount);
+  const visiblePhotos = resolvedPhotos.slice(0, visibleCount);
 
   return (
     <section
@@ -27,7 +34,7 @@ export default function Gallery() {
         </div>
 
         {/* Videos row — only renders when videos are uploaded */}
-        {galleryVideos.length > 0 && (
+        {resolvedVideos.length > 0 && (
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 mb-5">
             {galleryVideos.map((v, i) => (
               <button
@@ -80,7 +87,7 @@ export default function Gallery() {
           ))}
         </div>
 
-        {visibleCount < galleryPhotos.length && (
+        {visibleCount < resolvedPhotos.length && (
           <div className="mt-8 flex justify-center">
             <button
               type="button"
