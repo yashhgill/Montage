@@ -100,6 +100,12 @@ function ServiceCard({ s, idx, onOpen }) {
 }
 
 export default function Services({ onOpen }) {
+  const { resolve } = useImageOverrides();
+  const resolvedServices = services.map((svc) => ({
+    ...svc,
+    heroBg: resolve(`service.${svc.key}.hero`, svc.heroBg),
+    photos: svc.photos.map((ph, i) => ({ ...ph, src: resolve(`service.${svc.key}.photo.${i}`, ph.src) })),
+  }));
   return (
     <section id="services" data-testid="services-section"
       className="relative py-24 md:py-32 px-5 md:px-10 bg-void overflow-hidden">
