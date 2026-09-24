@@ -72,6 +72,10 @@ export async function onRequest(context) {
     if (method === "POST" && head === "admin" && route[1] === "preview-invoice") return handlePreviewInvoice(request, env);
     // Custom packages
     if (method === "POST" && head === "admin" && route[1] === "custom-package") return handleCreateCustomPackage(request, env);
+    // Site image overrides
+    if (method === "GET"  && head === "site-images") return handleGetSiteImages(request, env);
+    if (method === "POST" && head === "admin" && route[1] === "site-images") return handleSetSiteImage(request, env);
+    if (method === "DELETE" && head === "admin" && route[1] === "site-images") return handleDeleteSiteImage(request, env);
     if (method === "GET"  && head === "custom-package" && route[1]) return handleGetCustomPackage(request, env, route[1]);
     return json({ detail: "Not found" }, 404);
   } catch (err) {
@@ -932,6 +936,55 @@ function bytesToBase64(bytes) {
     bin += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
   }
   return btoa(bin);
+}
+
+// ─── Site Image Override Handlers ───────────────────────────────────────────
+
+// GET /api/bookings/site-images  — public; returns all active overrides as {key: url}
+async function handleGetSiteImages(request, env) {
+  try {
+    const rows = await env.DB.prepare("SELECT key, url FROM site_images").all();
+    const map = {};
+    for (const r of (rows.results || [])) map[r.key] = r.url;
+    return json(map);
+  } catch (e) {
+    return json({});
+  }
+}
+
+// POST /api/bookings/admin/site-images  — staff sets/updates an image override
+// Body: { key, url, label }
+async function handleSetSiteImage(request, env) {
+  if (!checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
+  let b;
+  try { b = await request.json(); } catch { return json({ detail: "Invalid JSON" }, 400); }
+
+  const key   = String(b.key   || "").trim();
+  const url   = String(b.url   || "").trim();
+  const label = String(b.label || "").trim();
+
+  if (!key) return json({ detail: "key is required" }, 400);
+  if (!url || !url.startsWith("http")) return json({ detail: "A valid https URL is required" }, 400);
+  if (url.length > 2000) return json({ detail: "URL too long" }, 400);
+
+  await env.DB.prepare(`
+    INSERT INTO site_images (key, url, label, updated_at) VALUES (?,?,?,?)
+    ON CONFLICT(key) DO UPDATE SET url=excluded.url, label=excluded.label, updated_at=excluded.updated_at
+  `).bind(key, url, label, new Date().toISOString()).run();
+
+  return json({ ok: true, key, url });
+}
+
+// DELETE /api/bookings/admin/site-images  — staff resets an image back to default
+// Body: { key }
+async function handleDeleteSiteImage(request, env) {
+  if (!checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
+  let b;
+  try { b = await request.json(); } catch { return json({ detail: "Invalid JSON" }, 400); }
+  const key = String(b.key || "").trim();
+  if (!key) return json({ detail: "key is required" }, 400);
+  await env.DB.prepare("DELETE FROM site_images WHERE key=?").bind(key).run();
+  return json({ ok: true, key, reset: true });
 }
 
 // ─── Custom Package Handlers ────────────────────────────────────────────────
