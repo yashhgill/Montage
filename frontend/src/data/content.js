@@ -273,7 +273,6 @@ export const galleryPhotos = [
   `${R2}/Event%20Vibes/photo_6332483980497719292_y.jpg`,
   `${R2}/Event%20Vibes/photo_6332483980497719263_y.jpg`,
   `${R2}/Event%20Vibes/photo_6330141780212388571_y.jpg`,
-  `${R2}/Event%20Vibes/photo_6329969337275453838_x.jpg`,
   `${R2}/Event%20Vibes/photo_6330141780212388560_y.jpg`,
   `${R2}/Event%20Vibes/photo_6330141780212388548_y.jpg`,
   `${R2}/Event%20Vibes/photo_6330141780212388539_y.jpg`,
