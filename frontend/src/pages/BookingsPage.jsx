@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import axios from "axios";
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
@@ -575,7 +576,7 @@ export default function BookingsPage() {
                 {promoState === "ok" ? (
                   <div className="flex items-center justify-between gap-3">
                     <p className="text-sm font-semibold text-neon-lime">
-                      {promoInfo.code} applied \u2014 RM{promoInfo.discount_rm} off your deposit 🎉
+                      {promoInfo.code} applied — RM{promoInfo.discount_rm} off your deposit 🎉
                     </p>
                     <button onClick={clearPromo} className="text-xs text-white/40 hover:text-white underline">Remove</button>
                   </div>
