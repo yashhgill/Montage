@@ -195,37 +195,53 @@ async function handleCreate(request, env) {
   return json({ reference, payment_url: `${TOYYIBPAY_BASE}/${billCode}` });
 }
 
+// Ask ToyyibPay whether a bill has a successful payment. ToyyibPay's
+// getBillTransactions response does NOT echo billCode, so we filter by
+// billpaymentStatus=1 in the request and match on the external reference.
+async function verifyPaidWithToyyib(env, billCode, ref) {
+  if (!billCode || !env.TOYYIBPAY_SECRET_KEY) return false;
+  try {
+    const resp = await fetch(`${TOYYIBPAY_BASE}/index.php/api/getBillTransactions`, {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        userSecretKey: env.TOYYIBPAY_SECRET_KEY, billCode, billpaymentStatus: "1",
+      }),
+    });
+    const txns = await resp.json();
+    return Array.isArray(txns) && txns.some(
+      (t) => String(t.billpaymentStatus) === "1" &&
+        (!t.billExternalReferenceNo || !ref || String(t.billExternalReferenceNo) === String(ref))
+    );
+  } catch (e) {
+    console.error("Could not verify payment with ToyyibPay:", e.message);
+    return false;
+  }
+}
+
+async function finalizePaid(env, rec) {
+  if (rec.status === "paid") return;
+  let calId = "";
+  let emailed = 0;
+  try { calId = await blockCalendar(env, rec); } catch (e) { console.error("calendar", e.message); }
+  try { emailed = (await sendEmail(env, rec)) ? 1 : 0; } catch (e) { console.error("email", e.message); }
+  await env.DB.prepare(
+    `UPDATE event_bookings SET status='paid', paid_at=?, calendar_event_id=?, email_sent=? WHERE reference=?`
+  ).bind(new Date().toISOString(), calId, emailed, rec.reference).run();
+  if (rec.promo_code) {
+    try {
+      await env.DB.prepare(
+        `UPDATE expo_prizes SET status='redeemed', redeemed_at=? WHERE code=? AND status!='redeemed'`
+      ).bind(new Date().toISOString(), rec.promo_code).run();
+    } catch (e) { /* non-fatal */ }
+  }
+}
+
 async function handleCallback(request, env) {
   const form = await request.formData();
   const ref = form.get("order_id") || form.get("billExternalReferenceNo") || "";
   const statusId = String(form.get("status") || form.get("status_id") || "");
   const billCode = form.get("billcode") || form.get("billCode") || "";
-
-  // ── Security: verify payment with ToyyibPay API before trusting callback ──
-  // Prevents fake POSTs from marking bookings as paid without actual payment.
-  if (statusId === "1" && billCode && env.TOYYIBPAY_SECRET_KEY) {
-    try {
-      const verifyResp = await fetch(`${TOYYIBPAY_BASE}/index.php/api/getBillTransactions`, {
-        method: "POST",
-        headers: { "content-type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({ userSecretKey: env.TOYYIBPAY_SECRET_KEY, billCode }),
-      });
-      const txns = await verifyResp.json();
-      // ToyyibPay returns array of transactions; we need at least one with billpaymentStatus=1
-      const verified = Array.isArray(txns) && txns.some(
-        (t) => String(t.billpaymentStatus) === "1" && t.billCode === billCode
-      );
-      if (!verified) {
-        // Log the attempt and reject — this is a fake or failed callback
-        console.error("SECURITY: Unverified callback for", billCode, "ref", ref, "status", statusId);
-        return json({ ok: true }); // always return ok to ToyyibPay, but don't process
-      }
-    } catch (e) {
-      // If verification call fails, process conservatively (don't mark paid)
-      console.error("SECURITY: Could not verify payment with ToyyibPay:", e.message);
-      return json({ ok: true });
-    }
-  }
 
   const rec = await env.DB.prepare(
     `SELECT * FROM event_bookings WHERE reference=? OR bill_code=?`
@@ -234,23 +250,14 @@ async function handleCallback(request, env) {
   if (rec.status === "paid") return json({ ok: true }); // idempotent
 
   if (statusId === "1") {
-    let calId = "";
-    let emailed = 0;
-    try { calId = await blockCalendar(env, rec); } catch (e) {}
-    try { emailed = (await sendEmail(env, rec)) ? 1 : 0; } catch (e) {}
-    await env.DB.prepare(
-      `UPDATE event_bookings SET status='paid', paid_at=?, calendar_event_id=?, email_sent=? WHERE reference=?`
-    ).bind(new Date().toISOString(), calId, emailed, rec.reference).run();
-    // burn the expo discount code so it can't be reused
-    if (rec.promo_code) {
-      try {
-        await env.DB.prepare(
-          `UPDATE expo_prizes SET status='redeemed', redeemed_at=? WHERE code=? AND status!='redeemed'`
-        ).bind(new Date().toISOString(), rec.promo_code).run();
-      } catch (e) { /* non-fatal */ }
+    // never trust the callback alone: confirm with ToyyibPay (blocks spoofed POSTs)
+    if (await verifyPaidWithToyyib(env, rec.bill_code || billCode, rec.reference)) {
+      await finalizePaid(env, rec);
+    } else {
+      console.error("SECURITY: unverified callback", rec.reference, billCode);
     }
   } else if (statusId === "3") {
-    await env.DB.prepare(`UPDATE event_bookings SET status='failed' WHERE reference=?`)
+    await env.DB.prepare(`UPDATE event_bookings SET status='failed' WHERE reference=? AND status='pending'`)
       .bind(rec.reference).run();
   }
   return json({ ok: true });
@@ -272,6 +279,13 @@ async function handleStatus(env, ref) {
   if (!ref) return json({ detail: "Missing reference" }, 400);
   const rec = await env.DB.prepare(`SELECT * FROM event_bookings WHERE reference=?`).bind(ref).first();
   if (!rec) return json({ detail: "Booking not found" }, 404);
+  // self-heal: if the callback was missed/rejected, confirm directly with ToyyibPay
+  if ((rec.status === "pending" || rec.status === "failed") && rec.bill_code) {
+    if (await verifyPaidWithToyyib(env, rec.bill_code, rec.reference)) {
+      await finalizePaid(env, rec);
+      rec.status = "paid";
+    }
+  }
   return json({
     reference: rec.reference,
     status: rec.status,
