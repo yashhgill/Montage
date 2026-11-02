@@ -13,6 +13,7 @@ import AdminCustomPackagePage from "@/pages/AdminCustomPackagePage";
 import AdminDashboardPage from "@/pages/AdminDashboardPage";
 import AdminSitePhotosPage from "@/pages/AdminSitePhotosPage";
 import AdminQuotationPage from "@/pages/AdminQuotationPage";
+import AdminPosPage from "@/pages/AdminPosPage";
 import PrivacyPolicyPage from "@/pages/PrivacyPolicyPage";
 import TermsPage from "@/pages/TermsPage";
 import RefundPolicyPage from "@/pages/RefundPolicyPage";
@@ -29,6 +30,7 @@ function App() {
         <Route path="/admin" element={<AdminDashboardPage />} />
         <Route path="/admin/site-photos" element={<AdminSitePhotosPage />} />
         <Route path="/admin/quotation" element={<AdminQuotationPage />} />
+        <Route path="/admin/pos" element={<AdminPosPage />} />
         <Route path="/admin/newsletter" element={<AdminNewsletterPage />} />
         <Route path="/admin/expo" element={<AdminExpoGamePage />} />
         <Route path="/photobooth" element={<PhotoboothPage />} />

@@ -72,6 +72,7 @@ export async function onRequest(context) {
     if (method === "POST" && head === "admin" && route[1] === "preview-invoice") return handlePreviewInvoice(request, env);
     // Custom packages
     if (method === "POST" && head === "admin" && route[1] === "custom-package") return handleCreateCustomPackage(request, env);
+    if (method === "POST" && head === "admin" && route[1] === "pos-receipt") return handlePosReceipt(request, env);
     // Quotation
     if (method === "POST" && head === "admin" && route[1] === "quotation") return handleAdminQuotation(request, env);
     if (method === "POST" && head === "admin" && route[1] === "preview-quotation") return handlePreviewQuotation(request, env);
@@ -1485,4 +1486,173 @@ ${rec.promo_discount_rm ? `<p style="margin:0;color:#B8FF2D"><b>Expo code ${rec.
     }
   );
   return res.ok;
+}
+
+
+// ─── Staff POS receipt (iPad checkout at events) ─────────────────────────────
+// Staff takes customer details, customer pays by QR, staff taps "Done" →
+// this builds a one-page PAID receipt PDF and emails it to the customer
+// (To), with Montage's address on both Cc and Bcc (+ any extra Cc).
+const escHtml = (v) => String(v == null ? "" : v)
+  .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+const EMAIL_RE = /^[^\s@,;<>"']+@[^\s@,;<>"']+\.[^\s@,;<>"']+$/;
+
+async function buildPosReceiptPdf(env, rec) {
+  const pdf = await PDFDocument.create();
+  const page = pdf.addPage([595, 842]);
+  const W = 595, H = 842, M = 44;
+  const font = await pdf.embedFont(StandardFonts.Helvetica);
+  const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+  const black = rgb(0.08, 0.08, 0.1), grey = rgb(0.35, 0.35, 0.38), gold = rgb(0.72, 0.58, 0.18);
+  const green = rgb(0.1, 0.55, 0.25);
+  const hline = (y, thick = 1, col = rgb(0.75, 0.75, 0.75)) =>
+    page.drawLine({ start: { x: M, y }, end: { x: W - M, y }, thickness: thick, color: col });
+  const centerText = (t, y, size, f = font, color = black) => {
+    const w = f.widthOfTextAtSize(t, size); page.drawText(t, { x: (W - w) / 2, y, size, font: f, color });
+  };
+  const rightText = (t, y, xr, size, f = font, color = black) => {
+    const w = f.widthOfTextAtSize(t, size); page.drawText(t, { x: xr - w, y, size, font: f, color });
+  };
+  const S = sanitizePdfText;
+
+  let y = H - 42;
+  try {
+    const imgRes = await fetch("https://pub-b849c3b830534eeea60b6844defeeb9f.r2.dev/images/montage-gold-logo.png");
+    if (imgRes.ok) {
+      const png = await pdf.embedPng(new Uint8Array(await imgRes.arrayBuffer()));
+      const sc = png.scaleToFit(90, 56);
+      page.drawImage(png, { x: M, y: y - 38, width: sc.width, height: sc.height });
+    }
+  } catch (_) {}
+  centerText("MONTAGE EVENT MANAGEMENT (MA0293072-D)", y - 2, 11.5, bold, black);
+  centerText("NO. 20, JALAN NAGASARI 36/9A, DESA ALAM, SEKSYEN 36,", y - 14, 8, font, grey);
+  centerText("40470 SHAH ALAM, SELANGOR", y - 24, 8, font, grey);
+  centerText("TEL: 013-344 6521   /   EMAIL: jojo@montageevents.my", y - 34, 8, font, grey);
+  y -= 44; hline(y); y -= 24;
+  centerText("RECEIPT", y, 20, bold, black); y -= 20;
+  centerText("PAID", y, 11, bold, green); y -= 22;
+
+  // customer + meta
+  const top = y;
+  page.drawText("RECEIVED FROM:", { x: M, y, size: 8.5, font: bold, color: black });
+  page.drawText(S(rec.name), { x: M, y: y - 13, size: 11, font: bold, color: black });
+  page.drawText(S(rec.phone), { x: M, y: y - 26, size: 9, font, color: grey });
+  page.drawText(S(rec.email), { x: M, y: y - 38, size: 9, font, color: grey });
+  rightText(S(`RECEIPT NO :  ${rec.receipt_no}`), top, W - M, 9, bold, black);
+  rightText(S(`DATE :  ${rec.date_str}`), top - 12, W - M, 9, font, black);
+  rightText(S(`PAYMENT :  ${rec.method}`), top - 24, W - M, 9, font, black);
+  if (rec.event_name) rightText(S(`EVENT :  ${rec.event_name}`.slice(0, 48)), top - 36, W - M, 9, font, black);
+  y = top - 54; hline(y); y -= 14;
+
+  const AMOUNT_X = W - M, QTY_X = W - M - 110, RATE_X = W - M - 190;
+  page.drawText("DESCRIPTION", { x: M, y, size: 8.5, font: bold, color: black });
+  rightText("RATE", y, RATE_X + 34, 8.5, bold, black);
+  rightText("QTY", y, QTY_X + 14, 8.5, bold, black);
+  rightText("AMOUNT (RM)", y, AMOUNT_X, 8.5, bold, black);
+  y -= 5; hline(y, 1.2, black); y -= 15;
+
+  for (const it of rec.items) {
+    const lines = wrapText(S(it.description), font, 9.5, RATE_X - M - 50);
+    const rowTop = y;
+    lines.slice(0, 3).forEach((l) => { page.drawText(l, { x: M, y, size: 9.5, font, color: black }); y -= 12; });
+    rightText(fmtMoney(it.price), rowTop, RATE_X + 34, 9.5, font, black);
+    rightText(String(it.qty), rowTop, QTY_X + 14, 9.5, font, black);
+    rightText(fmtMoney(it.amount), rowTop, AMOUNT_X, 9.5, font, black);
+    y -= 4;
+  }
+  hline(y); y -= 18;
+  rightText("TOTAL PAID (MYR):", y, AMOUNT_X - 96, 11, bold, black);
+  rightText(fmtMoney(rec.total), y, AMOUNT_X, 12.5, bold, black); y -= 9;
+  hline(y, 1.2, black); y -= 16;
+  const label = "RINGGIT MALAYSIA: ";
+  page.drawText(label, { x: M, y, size: 8.5, font, color: black });
+  const wx = M + font.widthOfTextAtSize(label, 8.5);
+  let wy = y;
+  wrapText(ringgitWords(rec.total), bold, 8.5, W - M - wx).forEach((wl, i) => {
+    page.drawText(wl, { x: i === 0 ? wx : M, y: wy, size: 8.5, font: bold, color: black }); wy -= 11;
+  });
+  y = wy - 22;
+  page.drawText("Payment received in full by QR transfer. Thank you!", { x: M, y, size: 9, font: bold, color: gold }); y -= 14;
+  page.drawText("This is a computer generated receipt and does not require a signature.", { x: M, y, size: 7.5, font, color: grey }); y -= 9;
+  page.drawText("Please keep this receipt for your records. Payments are non-refundable unless stated otherwise.", { x: M, y, size: 7.5, font, color: grey });
+  return await pdf.save();
+}
+
+// POST /api/bookings/admin/pos-receipt
+async function handlePosReceipt(request, env) {
+  if (!checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
+  let b; try { b = await request.json(); } catch { return json({ detail: "Invalid JSON" }, 400); }
+
+  const name = String(b.name || "").trim().slice(0, 100);
+  const email = String(b.email || "").trim().slice(0, 150);
+  const phone = String(b.phone || "").trim().slice(0, 30);
+  const eventName = String(b.event_name || "").trim().slice(0, 80);
+  const method = String(b.method || "Maybank QR").trim().slice(0, 40);
+  if (!name) return json({ detail: "Customer name is required" }, 400);
+  if (!EMAIL_RE.test(email)) return json({ detail: "A valid customer email is required" }, 400);
+  if (!phone) return json({ detail: "Customer phone is required" }, 400);
+
+  const items = (Array.isArray(b.items) ? b.items : []).slice(0, 10).map((it) => {
+    const qty = Math.round(Number(it.qty));
+    const price = Math.round(Number(it.price) * 100) / 100;
+    return {
+      description: String(it.description || "").trim().slice(0, 140),
+      qty, price, amount: Math.round(qty * price * 100) / 100,
+    };
+  }).filter((it) => it.description && it.qty >= 1 && it.qty <= 99 && it.price > 0 && it.price <= 50000);
+  if (!items.length) return json({ detail: "Add at least one item with a price" }, 400);
+  const total = Math.round(items.reduce((s, it) => s + it.amount, 0) * 100) / 100;
+
+  const extraCc = String(b.extra_cc || "").split(/[,\s;]+/).map((s) => s.trim()).filter(Boolean);
+  if (extraCc.some((a) => !EMAIL_RE.test(a))) return json({ detail: "An extra CC address is not valid" }, 400);
+
+  const my = new Date(Date.now() + 8 * 3600 * 1000); // Malaysia time
+  const receiptNo = "RCP" + my.toISOString().slice(2, 10).replace(/-/g, "") + "-" +
+    Math.random().toString(36).slice(2, 6).toUpperCase();
+  const dateStr = my.toISOString().slice(8, 10) + "/" + my.toISOString().slice(5, 7) + "/" +
+    my.toISOString().slice(0, 4) + " " + my.toISOString().slice(11, 16);
+  const rec = { name, email, phone, event_name: eventName, method, items, total, receipt_no: receiptNo, date_str: dateStr };
+
+  let pdfBytes;
+  try { pdfBytes = await buildPosReceiptPdf(env, rec); }
+  catch (e) { return json({ detail: "Could not generate the receipt" }, 500); }
+
+  if (!env.GOOGLE_REFRESH_TOKEN || !env.GMAIL_SENDER) return json({ detail: "Email is not configured", receipt_no: receiptNo }, 503);
+  let emailSent = false;
+  try {
+    const token = await getGoogleAccessToken(env);
+    const ccList = Array.from(new Set([env.GMAIL_SENDER, ...extraCc]));
+    const bccList = [env.GMAIL_SENDER];
+    const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#0A0A12;color:#fff;padding:32px;border-radius:12px">
+<h1 style="color:#B8FF2D;margin:0 0 4px">Payment Received</h1>
+<p style="color:#bbb;margin:0 0 24px">Hi ${escHtml(name)}, thank you! Your receipt is attached.</p>
+<div style="background:#14141f;border-radius:10px;padding:20px;margin-bottom:20px">
+<p style="margin:0 0 10px"><b style="color:#FF2DD4">Receipt No:</b> ${escHtml(receiptNo)}</p>
+${eventName ? `<p style="margin:0 0 10px"><b>Event:</b> ${escHtml(eventName)}</p>` : ""}
+${items.map((it) => `<p style="margin:0 0 10px"><b>${escHtml(it.description)}</b> &times; ${it.qty} &mdash; RM ${fmtMoney(it.amount)}</p>`).join("")}
+<p style="margin:0"><b>Total paid:</b> RM ${fmtMoney(total)} (${escHtml(method)})</p>
+</div>
+<p style="color:#777;font-size:12px;margin-top:24px">Montage Event Management &middot; Shah Alam, Malaysia<br/>Reply to this email with any questions.</p>
+</div>`;
+    const boundary = "montage_" + Math.random().toString(36).slice(2);
+    const fileName = receiptNo.replace(/[^a-zA-Z0-9]/g, "-") + ".pdf";
+    const pdfB64 = bytesToBase64(pdfBytes);
+    const raw =
+      `From: Montage Events <${env.GMAIL_SENDER}>\r\nTo: ${email}\r\n` +
+      `Cc: ${ccList.join(", ")}\r\nBcc: ${bccList.join(", ")}\r\n` +
+      `Subject: Receipt ${receiptNo} from Montage Event Management\r\nMIME-Version: 1.0\r\n` +
+      `Content-Type: multipart/mixed; boundary="${boundary}"\r\n\r\n--${boundary}\r\n` +
+      `Content-Type: text/html; charset=UTF-8\r\n\r\n${html}\r\n--${boundary}\r\n` +
+      `Content-Type: application/pdf; name="${fileName}"\r\nContent-Disposition: attachment; filename="${fileName}"\r\n` +
+      `Content-Transfer-Encoding: base64\r\n\r\n${pdfB64.replace(/(.{76})/g, "$1\r\n")}\r\n--${boundary}--`;
+    const res = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {
+      method: "POST",
+      headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+      body: JSON.stringify({ raw: b64urlFromString(raw) }),
+    });
+    emailSent = res.ok;
+  } catch (e) { console.error("pos receipt email", e.message); }
+
+  if (!emailSent) return json({ detail: "Receipt created but the email failed to send", receipt_no: receiptNo }, 502);
+  return json({ ok: true, receipt_no: receiptNo, total, email_sent: true });
 }

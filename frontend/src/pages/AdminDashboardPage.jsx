@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Lock, FileText, Package, Gamepad2, Mail, Camera, LayoutDashboard, ExternalLink, ChevronRight, Image, ClipboardList
+  Lock, FileText, Package, Gamepad2, Mail, Camera, LayoutDashboard, ExternalLink, ChevronRight, Image, ClipboardList, QrCode
 } from "lucide-react";
 
 const TOOLS = [
@@ -22,6 +22,15 @@ const TOOLS = [
     icon: ClipboardList,
     path: "/admin/quotation",
     color: "neon-yellow",
+  },
+  {
+    id: "pos",
+    title: "Event Checkout (iPad)",
+    subtitle: "Collect details, show QR, email receipt",
+    description: "Staff iPad flow for events: take customer details, show the payment QR, then send a PAID receipt by email (CC/BCC Montage).",
+    icon: QrCode,
+    path: "/admin/pos",
+    color: "neon-lime",
   },
   {
     id: "custom-package",
