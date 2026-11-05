@@ -73,6 +73,8 @@ export async function onRequest(context) {
     // Custom packages
     if (method === "POST" && head === "admin" && route[1] === "custom-package") return handleCreateCustomPackage(request, env);
     if (method === "POST" && head === "admin" && route[1] === "pos-receipt") return handlePosReceipt(request, env);
+    if (method === "GET" && head === "admin" && route[1] === "pos-players") return handlePosPlayers(request, env);
+    if (method === "POST" && head === "admin" && route[1] === "pos-winner") return handlePosWinner(request, env);
     // Quotation
     if (method === "POST" && head === "admin" && route[1] === "quotation") return handleAdminQuotation(request, env);
     if (method === "POST" && head === "admin" && route[1] === "preview-quotation") return handlePreviewQuotation(request, env);
@@ -1613,6 +1615,27 @@ async function handlePosReceipt(request, env) {
     my.toISOString().slice(0, 4) + " " + my.toISOString().slice(11, 16);
   const rec = { name, email, phone, event_name: eventName, method, items, total, receipt_no: receiptNo, date_str: dateStr };
 
+  // Save the customer as a lead (reuses the existing `leads` table) so we can
+  // contact them later, e.g. if they win. Never blocks the receipt.
+  const marketing = !!b.marketing_ok;
+  try {
+    const nowIso = new Date().toISOString();
+    const note = `Paid RM ${fmtMoney(total)} (${items.map((it) => it.description + " x" + it.qty).join("; ")}) - ${receiptNo}`.slice(0, 400);
+    await env.DB.prepare(
+      `INSERT INTO leads (phone, name, email, consent, source, event_type, message, status, created_at)
+       VALUES (?, ?, ?, ?, 'racing_sim', ?, ?, 'new', ?)
+       ON CONFLICT(phone) DO UPDATE SET name=excluded.name, email=excluded.email,
+         consent=MAX(leads.consent, excluded.consent), event_type=excluded.event_type,
+         message=substr(excluded.message || ' | ' || COALESCE(leads.message,''), 1, 900)`
+    ).bind(phone, name, email.toLowerCase(), marketing ? 1 : 0, eventName, note, nowIso).run();
+    if (marketing) {
+      await env.DB.prepare(
+        `INSERT INTO newsletter_subscribers (email, name, status, created_at)
+         VALUES (?, ?, 'active', ?) ON CONFLICT(email) DO UPDATE SET status='active', name=excluded.name`
+      ).bind(email.toLowerCase(), name, nowIso).run();
+    }
+  } catch (e) { console.error("pos lead save", e.message); }
+
   let pdfBytes;
   try { pdfBytes = await buildPosReceiptPdf(env, rec); }
   catch (e) { return json({ detail: "Could not generate the receipt" }, 500); }
@@ -1655,4 +1678,34 @@ ${items.map((it) => `<p style="margin:0 0 10px"><b>${escHtml(it.description)}</b
 
   if (!emailSent) return json({ detail: "Receipt created but the email failed to send", receipt_no: receiptNo }, 502);
   return json({ ok: true, receipt_no: receiptNo, total, email_sent: true });
+}
+
+
+// GET /api/bookings/admin/pos-players — everyone who paid at a racing-sim checkout
+async function handlePosPlayers(request, env) {
+  if (!checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
+  const { results } = await env.DB.prepare(
+    `SELECT phone, name, email, event_type, message, status, created_at
+     FROM leads WHERE source='racing_sim' ORDER BY created_at DESC LIMIT 500`
+  ).all();
+  return json({ players: results || [] });
+}
+
+// POST /api/bookings/admin/pos-winner  { phone, winner: true|false, note }
+async function handlePosWinner(request, env) {
+  if (!checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
+  let b; try { b = await request.json(); } catch { return json({ detail: "Invalid JSON" }, 400); }
+  const phone = String(b.phone || "").trim();
+  if (!phone) return json({ detail: "Phone is required" }, 400);
+  const note = String(b.note || "").trim().slice(0, 200);
+  const rec = await env.DB.prepare(`SELECT message FROM leads WHERE phone=? AND source='racing_sim'`).bind(phone).first();
+  if (!rec) return json({ detail: "Player not found" }, 404);
+  if (b.winner) {
+    const msg = `WINNER${note ? ": " + note : ""} | ${rec.message || ""}`.slice(0, 900);
+    await env.DB.prepare(`UPDATE leads SET status='winner', message=? WHERE phone=?`).bind(msg, phone).run();
+  } else {
+    const msg = String(rec.message || "").replace(/^WINNER[^|]*\|\s*/, "");
+    await env.DB.prepare(`UPDATE leads SET status='new', message=? WHERE phone=?`).bind(msg, phone).run();
+  }
+  return json({ ok: true });
 }

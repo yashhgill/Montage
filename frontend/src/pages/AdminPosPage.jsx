@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
-import { Lock, Loader2, CheckCircle2, ArrowLeft, Plus, Minus, Trash2, QrCode, Send, UserPlus } from "lucide-react";
+import { Lock, Loader2, CheckCircle2, ArrowLeft, Plus, Minus, Trash2, QrCode, Send, UserPlus, Trophy, Phone, MessageCircle } from "lucide-react";
 
 const API = "/api";
 const SETUP_KEY = "montage_pos_setup_v1";
@@ -22,7 +22,12 @@ export default function AdminPosPage() {
   const [authed, setAuthed] = useState(!!sessionStorage.getItem("montage_admin_key"));
   const [authError, setAuthError] = useState("");
 
-  const [screen, setScreen] = useState("details"); // details | pay | done
+  const [screen, setScreen] = useState("details"); // details | pay | done | players
+  const [consent, setConsent] = useState(false);
+  const [marketing, setMarketing] = useState(false);
+  const [players, setPlayers] = useState([]);
+  const [playersLoading, setPlayersLoading] = useState(false);
+  const [busyPhone, setBusyPhone] = useState("");
   const [customer, setCustomer] = useState({ name: "", phone: "", email: "" });
   const [setup, setSetup] = useState(() => safeGet(SETUP_KEY) || defaultSetup);
   const [showOptions, setShowOptions] = useState(false);
@@ -59,6 +64,7 @@ export default function AdminPosPage() {
     if (!customer.phone.trim()) return setError("Enter the customer's phone number.");
     if (!emailOk) return setError("Enter a valid email address.");
     if (validItems.length === 0) return setError("Add an item with a price.");
+    if (!consent) return setError("Tick the box to confirm the customer agrees to be contacted about their result and prize.");
     setConfirming(false);
     setScreen("pay");
   };
@@ -70,7 +76,7 @@ export default function AdminPosPage() {
       const { data } = await axios.post(`${API}/bookings/admin/pos-receipt`, {
         name: customer.name.trim(), phone: customer.phone.trim(), email: customer.email.trim(),
         event_name: setup.event_name.trim(), extra_cc: setup.extra_cc,
-        method: "DuitNow QR",
+        method: "DuitNow QR", marketing_ok: marketing,
         items: validItems.map((it) => ({ description: it.description.trim(), qty: Number(it.qty), price: Number(it.price) })),
       }, { headers: { "x-admin-key": adminKey } });
       setResult(data);
@@ -84,8 +90,41 @@ export default function AdminPosPage() {
     } finally { setSending(false); }
   };
 
+  const headers = { headers: { "x-admin-key": adminKey } };
+  const loadPlayers = async () => {
+    setPlayersLoading(true); setError("");
+    try {
+      const { data } = await axios.get(`${API}/bookings/admin/pos-players`, headers);
+      setPlayers(data.players || []);
+    } catch (e) {
+      if (e?.response?.status === 401) { setAuthed(false); setAuthError("Staff key rejected."); }
+      else setError("Could not load players.");
+    } finally { setPlayersLoading(false); }
+  };
+  const openPlayers = () => { setScreen("players"); loadPlayers(); };
+  const markWinner = async (p, winner) => {
+    let note = "";
+    if (winner) {
+      const n = window.prompt(`Prize / result for ${p.name}? (optional, e.g. "1st place - RM200")`, "");
+      if (n === null) return;
+      note = n;
+    }
+    setBusyPhone(p.phone);
+    try {
+      await axios.post(`${API}/bookings/admin/pos-winner`, { phone: p.phone, winner, note }, headers);
+      await loadPlayers();
+    } catch { setError("Could not update. Try again."); }
+    finally { setBusyPhone(""); }
+  };
+  const waLink = (phone) => {
+    let d = String(phone).replace(/[^0-9]/g, "");
+    if (d.startsWith("0")) d = "60" + d.slice(1);
+    return `https://wa.me/${d}`;
+  };
+
   const next = () => {
     setCustomer({ name: "", phone: "", email: "" });
+    setConsent(false); setMarketing(false);
     setResult(null); setConfirming(false); setError(""); setScreen("details");
   };
 
@@ -111,7 +150,13 @@ export default function AdminPosPage() {
       <div className="max-w-2xl mx-auto px-5 py-6">
         <header className="flex items-center justify-between mb-6">
           <h1 className="font-display font-black text-2xl tracking-tight">MONTAGE<span className="text-neon-cyan">.</span> <span className="text-white/50 font-semibold text-lg">Checkout</span></h1>
-          <p className="text-xs text-white/50 text-right">Today on this iPad<br /><b className="text-white/80">{log.count} sales · RM {money(log.total)}</b></p>
+          <div className="flex items-center gap-3">
+            <button onClick={screen === "players" ? next : openPlayers}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full border border-white/20 text-sm font-semibold">
+              {screen === "players" ? <><ArrowLeft size={14} /> Checkout</> : <><Trophy size={14} /> Players</>}
+            </button>
+            <p className="text-xs text-white/50 text-right">Today on this iPad<br /><b className="text-white/80">{log.count} sales · RM {money(log.total)}</b></p>
+          </div>
         </header>
 
         {screen === "details" && (
@@ -165,6 +210,16 @@ export default function AdminPosPage() {
               </div>
             )}
 
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)}
+                className="mt-1 accent-neon-cyan w-5 h-5 shrink-0" />
+              <span className="text-sm text-white/70 leading-relaxed">Customer agrees Montage Event Management may contact them by phone, WhatsApp or email about their race result and any prize, and keep their details for that purpose.</span>
+            </label>
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input type="checkbox" checked={marketing} onChange={(e) => setMarketing(e.target.checked)}
+                className="mt-1 accent-neon-cyan w-5 h-5 shrink-0" />
+              <span className="text-sm text-white/50 leading-relaxed">Optional: also send them news and offers about future Montage events.</span>
+            </label>
             {error && <p className="text-neon-pink text-sm" role="alert">{error}</p>}
             <button onClick={toPay}
               className="w-full py-5 rounded-2xl bg-neon-cyan text-black font-bold text-xl inline-flex items-center justify-center gap-2">
@@ -180,7 +235,7 @@ export default function AdminPosPage() {
             <p className="text-white/60">{customer.name}</p>
             <p className="text-white/50 text-sm mb-2">Scan with any banking or e-wallet app</p>
             <p className="font-display font-black text-5xl text-neon-gradient mb-4">RM {money(total)}</p>
-            <img src="/pos/payment-qr.jpg" alt="Montage payment QR code" className="mx-auto w-full max-w-sm rounded-2xl" />
+            <img src="/pos/payment-qr-montage.jpg" alt="Montage payment QR code" className="mx-auto w-full max-w-sm rounded-2xl" />
             {error && <p className="mt-4 text-neon-pink text-sm" role="alert">{error}</p>}
             {!confirming ? (
               <button onClick={() => setConfirming(true)}
@@ -198,6 +253,44 @@ export default function AdminPosPage() {
                     {sending ? <><Loader2 size={18} className="animate-spin" /> Sending…</> : <><Send size={18} /> Yes, send receipt</>}
                   </button>
                 </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {screen === "players" && (
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-display font-black text-3xl">Players <span className="text-white/40 text-base font-normal">({players.length})</span></h2>
+              <button onClick={loadPlayers} className="text-sm text-neon-cyan font-semibold">Refresh</button>
+            </div>
+            {error && <p className="mb-3 text-neon-pink text-sm" role="alert">{error}</p>}
+            {playersLoading ? (
+              <p className="text-white/50 py-10 text-center"><Loader2 className="inline animate-spin" size={18} /> Loading…</p>
+            ) : players.length === 0 ? (
+              <p className="text-white/40 py-10 text-center text-sm">No players yet. Anyone who pays at checkout appears here.</p>
+            ) : (
+              <div className="space-y-3">
+                {players.map((p) => (
+                  <div key={p.phone} className={`rounded-2xl border p-4 ${p.status === "winner" ? "border-neon-lime/60 bg-neon-lime/5" : "border-white/12 bg-white/[0.03]"}`}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-bold text-lg flex items-center gap-2">{p.name}{p.status === "winner" && <span className="text-[10px] uppercase tracking-widest bg-neon-lime text-black px-2 py-0.5 rounded-full">Winner</span>}</p>
+                        <p className="text-sm text-white/60">{p.phone} · {p.email}</p>
+                        {p.event_type && <p className="text-xs text-white/40 mt-0.5">{p.event_type}</p>}
+                        <p className="text-xs text-white/40 mt-1 break-words">{p.message}</p>
+                      </div>
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <a href={`tel:${p.phone}`} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full border border-white/20 text-sm"><Phone size={14} /> Call</a>
+                      <a href={waLink(p.phone)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full border border-white/20 text-sm"><MessageCircle size={14} /> WhatsApp</a>
+                      <button onClick={() => markWinner(p, p.status !== "winner")} disabled={busyPhone === p.phone}
+                        className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold ${p.status === "winner" ? "border border-white/20" : "bg-neon-lime text-black"}`}>
+                        <Trophy size={14} /> {p.status === "winner" ? "Remove winner" : "Mark winner"}
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>
