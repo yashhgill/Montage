@@ -42,6 +42,23 @@ export default function AdminPosPage() {
 
   useEffect(() => { safeSet(SETUP_KEY, setup); }, [setup]);
 
+  // Kiosk tabs stay open for hours: when a new version is deployed, reload
+  // automatically, but only while idle (details screen with nothing typed).
+  const idle = screen === "details" && !customer.name && !customer.phone && !customer.email;
+  useEffect(() => {
+    const loaded = (document.querySelector('script[src*="/static/js/main."]') || {}).src || "";
+    const loadedHash = (loaded.match(/main\.([a-z0-9]+)\.js/) || [])[1];
+    if (!loadedHash) return undefined;
+    const t = setInterval(async () => {
+      try {
+        const html = await fetch("/", { cache: "no-store" }).then((r) => r.text());
+        const latest = (html.match(/static\/js\/main\.([a-z0-9]+)\.js/) || [])[1];
+        if (latest && latest !== loadedHash && idle) window.location.reload();
+      } catch { /* offline: ignore */ }
+    }, 45000);
+    return () => clearInterval(t);
+  }, [idle]);
+
   const items = setup.items;
   const setItem = (i, patch) => setSetup((s) => ({ ...s, items: s.items.map((it, k) => (k === i ? { ...it, ...patch } : it)) }));
   const addItem = () => setSetup((s) => ({ ...s, items: [...s.items, { description: "", qty: 1, price: "" }] }));
