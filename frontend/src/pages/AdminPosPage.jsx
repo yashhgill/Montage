@@ -319,6 +319,9 @@ export default function AdminPosPage() {
             <h2 className="font-display font-black text-3xl mb-2">Receipt sent</h2>
             <p className="text-white/70">{result?.receipt_no} · RM {money(result?.total)}</p>
             <p className="text-white/50 text-sm mt-1">Emailed to {customer.email}</p>
+            {result && result.lead_saved === false && (
+              <p className="mt-4 text-neon-pink text-sm" role="alert">Warning: this customer was NOT saved to the Players list. Please note down their name and phone: {customer.name}, {customer.phone}.</p>
+            )}
             <button onClick={next}
               className="mt-8 w-full py-5 rounded-2xl bg-neon-cyan text-black font-bold text-xl inline-flex items-center justify-center gap-2">
               <UserPlus size={22} /> Next customer

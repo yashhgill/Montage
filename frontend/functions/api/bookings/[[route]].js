@@ -1618,6 +1618,7 @@ async function handlePosReceipt(request, env) {
   // Save the customer as a lead (reuses the existing `leads` table) so we can
   // contact them later, e.g. if they win. Never blocks the receipt.
   const marketing = !!b.marketing_ok;
+  let leadSaved = false;
   try {
     const nowIso = new Date().toISOString();
     const note = `Paid RM ${fmtMoney(total)} (${items.map((it) => it.description + " x" + it.qty).join("; ")}) - ${receiptNo}`.slice(0, 400);
@@ -1628,6 +1629,7 @@ async function handlePosReceipt(request, env) {
          consent=MAX(leads.consent, excluded.consent), event_type=excluded.event_type,
          message=substr(excluded.message || ' | ' || COALESCE(leads.message,''), 1, 900)`
     ).bind(phone, name, email.toLowerCase(), marketing ? 1 : 0, eventName, note, nowIso).run();
+    leadSaved = true;
     if (marketing) {
       await env.DB.prepare(
         `INSERT INTO newsletter_subscribers (email, name, status, created_at)
@@ -1676,8 +1678,8 @@ ${items.map((it) => `<p style="margin:0 0 10px"><b>${escHtml(it.description)}</b
     emailSent = res.ok;
   } catch (e) { console.error("pos receipt email", e.message); }
 
-  if (!emailSent) return json({ detail: "Receipt created but the email failed to send", receipt_no: receiptNo }, 502);
-  return json({ ok: true, receipt_no: receiptNo, total, email_sent: true });
+  if (!emailSent) return json({ detail: "Receipt created but the email failed to send" + (leadSaved ? "" : " (and the customer could not be saved)"), receipt_no: receiptNo, lead_saved: leadSaved }, 502);
+  return json({ ok: true, receipt_no: receiptNo, total, email_sent: true, lead_saved: leadSaved });
 }
 
 
