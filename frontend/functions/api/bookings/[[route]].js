@@ -1625,7 +1625,7 @@ async function handlePosReceipt(request, env) {
     await env.DB.prepare(
       `INSERT INTO leads (phone, name, email, consent, source, event_type, message, status, created_at)
        VALUES (?, ?, ?, ?, 'racing_sim', ?, ?, 'new', ?)
-       ON CONFLICT(phone) DO UPDATE SET name=excluded.name, email=excluded.email,
+       ON CONFLICT(phone) DO UPDATE SET name=excluded.name, email=excluded.email, source='racing_sim',
          consent=MAX(leads.consent, excluded.consent), event_type=excluded.event_type,
          message=substr(excluded.message || ' | ' || COALESCE(leads.message,''), 1, 900)`
     ).bind(phone, name, email.toLowerCase(), marketing ? 1 : 0, eventName, note, nowIso).run();
@@ -1688,7 +1688,7 @@ async function handlePosPlayers(request, env) {
   if (!checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
   const { results } = await env.DB.prepare(
     `SELECT phone, name, email, event_type, message, status, created_at
-     FROM leads WHERE source='racing_sim' ORDER BY created_at DESC LIMIT 500`
+     FROM leads WHERE source='racing_sim' OR message LIKE '%RCP%' ORDER BY created_at DESC LIMIT 500`
   ).all();
   return json({ players: results || [] });
 }
@@ -1700,7 +1700,7 @@ async function handlePosWinner(request, env) {
   const phone = String(b.phone || "").trim();
   if (!phone) return json({ detail: "Phone is required" }, 400);
   const note = String(b.note || "").trim().slice(0, 200);
-  const rec = await env.DB.prepare(`SELECT message FROM leads WHERE phone=? AND source='racing_sim'`).bind(phone).first();
+  const rec = await env.DB.prepare(`SELECT message FROM leads WHERE phone=? AND (source='racing_sim' OR message LIKE '%RCP%')`).bind(phone).first();
   if (!rec) return json({ detail: "Player not found" }, 404);
   if (b.winner) {
     const msg = `WINNER${note ? ": " + note : ""} | ${rec.message || ""}`.slice(0, 900);
