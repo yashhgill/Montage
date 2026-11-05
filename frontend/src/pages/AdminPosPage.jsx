@@ -70,7 +70,7 @@ export default function AdminPosPage() {
       const { data } = await axios.post(`${API}/bookings/admin/pos-receipt`, {
         name: customer.name.trim(), phone: customer.phone.trim(), email: customer.email.trim(),
         event_name: setup.event_name.trim(), extra_cc: setup.extra_cc,
-        method: "Maybank QR",
+        method: "DuitNow QR",
         items: validItems.map((it) => ({ description: it.description.trim(), qty: Number(it.qty), price: Number(it.price) })),
       }, { headers: { "x-admin-key": adminKey } });
       setResult(data);
@@ -180,7 +180,7 @@ export default function AdminPosPage() {
             <p className="text-white/60">{customer.name}</p>
             <p className="text-white/50 text-sm mb-2">Scan with any banking or e-wallet app</p>
             <p className="font-display font-black text-5xl text-neon-gradient mb-4">RM {money(total)}</p>
-            <img src="/pos/payment-qr.jpg" alt="Montage payment QR code" className="mx-auto w-full max-w-xs rounded-2xl bg-white" />
+            <img src="/pos/payment-qr.jpg" alt="Montage payment QR code" className="mx-auto w-full max-w-sm rounded-2xl" />
             {error && <p className="mt-4 text-neon-pink text-sm" role="alert">{error}</p>}
             {!confirming ? (
               <button onClick={() => setConfirming(true)}

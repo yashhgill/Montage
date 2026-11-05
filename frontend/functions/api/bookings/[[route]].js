@@ -1587,7 +1587,7 @@ async function handlePosReceipt(request, env) {
   const email = String(b.email || "").trim().slice(0, 150);
   const phone = String(b.phone || "").trim().slice(0, 30);
   const eventName = String(b.event_name || "").trim().slice(0, 80);
-  const method = String(b.method || "Maybank QR").trim().slice(0, 40);
+  const method = String(b.method || "DuitNow QR").trim().slice(0, 40);
   if (!name) return json({ detail: "Customer name is required" }, 400);
   if (!EMAIL_RE.test(email)) return json({ detail: "A valid customer email is required" }, 400);
   if (!phone) return json({ detail: "Customer phone is required" }, 400);
