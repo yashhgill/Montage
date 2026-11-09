@@ -74,6 +74,8 @@ export async function onRequest(context) {
     if (method === "POST" && head === "admin" && route[1] === "custom-package") return handleCreateCustomPackage(request, env);
     if (method === "POST" && head === "admin" && route[1] === "pos-receipt") return handlePosReceipt(request, env);
     if (method === "GET" && head === "admin" && route[1] === "pos-players") return handlePosPlayers(request, env);
+    if (method === "GET" && head === "admin" && route[1] === "pos-sales") return handlePosSales(request, env);
+    if (method === "POST" && head === "admin" && route[1] === "pos-sale-flag") return handlePosSaleFlag(request, env);
     if (method === "POST" && head === "admin" && route[1] === "pos-winner") return handlePosWinner(request, env);
     // Quotation
     if (method === "POST" && head === "admin" && route[1] === "quotation") return handleAdminQuotation(request, env);
@@ -1618,8 +1620,20 @@ async function handlePosReceipt(request, env) {
   // Save the customer as a lead (reuses the existing `leads` table) so we can
   // contact them later, e.g. if they win. Never blocks the receipt.
   const marketing = !!b.marketing_ok;
+  const isTest = !!b.test_mode;
   let leadSaved = false;
+  let saleSaved = false;
   try {
+    await ensurePosTables(env);
+    await env.DB.prepare(
+      `INSERT INTO pos_sales (receipt_no, created_at, event_name, customer_name, phone, email, items_json, total, method, is_test, voided, email_sent)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0)`
+    ).bind(receiptNo, new Date().toISOString(), eventName, name, phone, email.toLowerCase(),
+      JSON.stringify(items), total, method, isTest ? 1 : 0).run();
+    saleSaved = true;
+  } catch (e) { console.error("pos sale save", e.message); }
+  try {
+    if (isTest) throw new Error("test mode: lead not saved");
     const nowIso = new Date().toISOString();
     const note = `Paid RM ${fmtMoney(total)} (${items.map((it) => it.description + " x" + it.qty).join("; ")}) - ${receiptNo}`.slice(0, 400);
     await env.DB.prepare(
@@ -1636,7 +1650,7 @@ async function handlePosReceipt(request, env) {
          VALUES (?, ?, 'active', ?) ON CONFLICT(email) DO UPDATE SET status='active', name=excluded.name`
       ).bind(email.toLowerCase(), name, nowIso).run();
     }
-  } catch (e) { console.error("pos lead save", e.message); }
+  } catch (e) { if (!isTest) console.error("pos lead save", e.message); }
 
   let pdfBytes;
   try { pdfBytes = await buildPosReceiptPdf(env, rec); }
@@ -1665,7 +1679,7 @@ ${items.map((it) => `<p style="margin:0 0 10px"><b>${escHtml(it.description)}</b
     const raw =
       `From: Montage Events <${env.GMAIL_SENDER}>\r\nTo: ${email}\r\n` +
       `Cc: ${ccList.join(", ")}\r\nBcc: ${bccList.join(", ")}\r\n` +
-      `Subject: Receipt ${receiptNo} from Montage Event Management\r\nMIME-Version: 1.0\r\n` +
+      `Subject: ${isTest ? "[TEST] " : ""}Receipt ${receiptNo} from Montage Event Management\r\nMIME-Version: 1.0\r\n` +
       `Content-Type: multipart/mixed; boundary="${boundary}"\r\n\r\n--${boundary}\r\n` +
       `Content-Type: text/html; charset=UTF-8\r\n\r\n${html}\r\n--${boundary}\r\n` +
       `Content-Type: application/pdf; name="${fileName}"\r\nContent-Disposition: attachment; filename="${fileName}"\r\n` +
@@ -1676,38 +1690,107 @@ ${items.map((it) => `<p style="margin:0 0 10px"><b>${escHtml(it.description)}</b
       body: JSON.stringify({ raw: b64urlFromString(raw) }),
     });
     emailSent = res.ok;
+    if (emailSent && saleSaved) {
+      await env.DB.prepare(`UPDATE pos_sales SET email_sent=1 WHERE receipt_no=?`).bind(receiptNo).run();
+    }
   } catch (e) { console.error("pos receipt email", e.message); }
 
-  if (!emailSent) return json({ detail: "Receipt created but the email failed to send" + (leadSaved ? "" : " (and the customer could not be saved)"), receipt_no: receiptNo, lead_saved: leadSaved }, 502);
-  return json({ ok: true, receipt_no: receiptNo, total, email_sent: true, lead_saved: leadSaved });
+  if (!emailSent) return json({ detail: "Receipt created but the email failed to send" + (leadSaved ? "" : " (and the customer could not be saved)"), receipt_no: receiptNo, lead_saved: leadSaved, sale_saved: saleSaved }, 502);
+  return json({ ok: true, receipt_no: receiptNo, total, email_sent: true, lead_saved: leadSaved, sale_saved: saleSaved, test: isTest });
 }
 
 
-// GET /api/bookings/admin/pos-players — everyone who paid at a racing-sim checkout
+// Tables are created on first use, so no manual SQL is needed.
+let posTablesReady = false;
+async function ensurePosTables(env) {
+  if (posTablesReady) return;
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS pos_sales (
+    receipt_no TEXT PRIMARY KEY, created_at TEXT, event_name TEXT, customer_name TEXT,
+    phone TEXT, email TEXT, items_json TEXT, total REAL, method TEXT,
+    is_test INTEGER DEFAULT 0, voided INTEGER DEFAULT 0, email_sent INTEGER DEFAULT 0)`).run();
+  await env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_pos_sales_created ON pos_sales (created_at)`).run();
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS pos_winners (
+    phone TEXT PRIMARY KEY, note TEXT, created_at TEXT)`).run();
+  posTablesReady = true;
+}
+
+// GET /api/bookings/admin/pos-players — paying customers (real sales only), with winner flag
 async function handlePosPlayers(request, env) {
   if (!checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
+  await ensurePosTables(env);
   const { results } = await env.DB.prepare(
-    `SELECT phone, name, email, event_type, message, status, created_at
-     FROM leads WHERE source='racing_sim' OR message LIKE '%RCP%' ORDER BY created_at DESC LIMIT 500`
+    `SELECT s.phone AS phone, MAX(s.customer_name) AS name, MAX(s.email) AS email,
+            MAX(s.event_name) AS event_type, COUNT(*) AS sales, ROUND(SUM(s.total),2) AS spent,
+            MAX(s.created_at) AS created_at,
+            CASE WHEN w.phone IS NULL THEN 'new' ELSE 'winner' END AS status,
+            COALESCE(w.note,'') AS winner_note
+     FROM pos_sales s LEFT JOIN pos_winners w ON w.phone = s.phone
+     WHERE s.is_test=0 AND s.voided=0
+     GROUP BY s.phone ORDER BY MAX(s.created_at) DESC LIMIT 500`
   ).all();
-  return json({ players: results || [] });
+  const players = (results || []).map((p) => ({
+    ...p,
+    message: `${p.sales} paid sale${p.sales > 1 ? "s" : ""}, RM ${Number(p.spent).toFixed(2)}` + (p.winner_note ? ` - WINNER: ${p.winner_note}` : ""),
+  }));
+  return json({ players });
 }
 
 // POST /api/bookings/admin/pos-winner  { phone, winner: true|false, note }
 async function handlePosWinner(request, env) {
   if (!checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
+  await ensurePosTables(env);
   let b; try { b = await request.json(); } catch { return json({ detail: "Invalid JSON" }, 400); }
   const phone = String(b.phone || "").trim();
   if (!phone) return json({ detail: "Phone is required" }, 400);
   const note = String(b.note || "").trim().slice(0, 200);
-  const rec = await env.DB.prepare(`SELECT message FROM leads WHERE phone=? AND (source='racing_sim' OR message LIKE '%RCP%')`).bind(phone).first();
-  if (!rec) return json({ detail: "Player not found" }, 404);
+  const has = await env.DB.prepare(`SELECT 1 AS x FROM pos_sales WHERE phone=? LIMIT 1`).bind(phone).first();
+  if (!has) return json({ detail: "Player not found" }, 404);
   if (b.winner) {
-    const msg = `WINNER${note ? ": " + note : ""} | ${rec.message || ""}`.slice(0, 900);
-    await env.DB.prepare(`UPDATE leads SET status='winner', message=? WHERE phone=?`).bind(msg, phone).run();
+    await env.DB.prepare(
+      `INSERT INTO pos_winners (phone, note, created_at) VALUES (?, ?, ?)
+       ON CONFLICT(phone) DO UPDATE SET note=excluded.note`
+    ).bind(phone, note, new Date().toISOString()).run();
+    try { await env.DB.prepare(`UPDATE leads SET status='winner' WHERE phone=?`).bind(phone).run(); } catch (_) {}
   } else {
-    const msg = String(rec.message || "").replace(/^WINNER[^|]*\|\s*/, "");
-    await env.DB.prepare(`UPDATE leads SET status='new', message=? WHERE phone=?`).bind(msg, phone).run();
+    await env.DB.prepare(`DELETE FROM pos_winners WHERE phone=?`).bind(phone).run();
+    try { await env.DB.prepare(`UPDATE leads SET status='new' WHERE phone=? AND status='winner'`).bind(phone).run(); } catch (_) {}
   }
+  return json({ ok: true });
+}
+
+// GET /api/bookings/admin/pos-sales — totals (real sales only) + recent list
+async function handlePosSales(request, env) {
+  if (!checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
+  await ensurePosTables(env);
+  const real = `is_test=0 AND voided=0`;
+  const tot = await env.DB.prepare(
+    `SELECT
+       COUNT(*) AS all_count, COALESCE(ROUND(SUM(total),2),0) AS all_revenue,
+       COALESCE(SUM(CASE WHEN date(created_at,'+8 hours')=date('now','+8 hours') THEN 1 ELSE 0 END),0) AS today_count,
+       COALESCE(ROUND(SUM(CASE WHEN date(created_at,'+8 hours')=date('now','+8 hours') THEN total ELSE 0 END),2),0) AS today_revenue
+     FROM pos_sales WHERE ${real}`
+  ).first();
+  const ex = await env.DB.prepare(
+    `SELECT COUNT(*) AS excluded_count, COALESCE(ROUND(SUM(total),2),0) AS excluded_revenue
+     FROM pos_sales WHERE NOT (${real})`
+  ).first();
+  const { results } = await env.DB.prepare(
+    `SELECT receipt_no, created_at, event_name, customer_name, phone, email, items_json, total, method,
+            is_test, voided, email_sent FROM pos_sales ORDER BY created_at DESC LIMIT 300`
+  ).all();
+  return json({ totals: { ...tot, ...ex }, sales: results || [] });
+}
+
+// POST /api/bookings/admin/pos-sale-flag  { receipt_no, is_test?, voided? }
+async function handlePosSaleFlag(request, env) {
+  if (!checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
+  await ensurePosTables(env);
+  let b; try { b = await request.json(); } catch { return json({ detail: "Invalid JSON" }, 400); }
+  const ref = String(b.receipt_no || "").trim();
+  if (!ref) return json({ detail: "receipt_no is required" }, 400);
+  if (typeof b.is_test === "boolean")
+    await env.DB.prepare(`UPDATE pos_sales SET is_test=? WHERE receipt_no=?`).bind(b.is_test ? 1 : 0, ref).run();
+  if (typeof b.voided === "boolean")
+    await env.DB.prepare(`UPDATE pos_sales SET voided=? WHERE receipt_no=?`).bind(b.voided ? 1 : 0, ref).run();
   return json({ ok: true });
 }

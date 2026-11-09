@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
-import { Lock, Loader2, CheckCircle2, ArrowLeft, Plus, Minus, Trash2, QrCode, Send, UserPlus, Trophy, Phone, MessageCircle } from "lucide-react";
+import { Lock, Loader2, CheckCircle2, ArrowLeft, Plus, Minus, Trash2, QrCode, Send, UserPlus, Trophy, Phone, MessageCircle, Receipt, Download } from "lucide-react";
 
 const API = "/api";
 const SETUP_KEY = "montage_pos_setup_v1";
@@ -22,7 +22,11 @@ export default function AdminPosPage() {
   const [authed, setAuthed] = useState(!!sessionStorage.getItem("montage_admin_key"));
   const [authError, setAuthError] = useState("");
 
-  const [screen, setScreen] = useState("details"); // details | pay | done | players
+  const [screen, setScreen] = useState("details"); // details | pay | done | players | sales
+  const [testMode, setTestMode] = useState(() => !!safeGet("montage_pos_test_v1"));
+  const [sales, setSales] = useState([]);
+  const [totals, setTotals] = useState(null);
+  const [salesLoading, setSalesLoading] = useState(false);
   const [consent, setConsent] = useState(false);
   const [marketing, setMarketing] = useState(false);
   const [players, setPlayers] = useState([]);
@@ -41,6 +45,7 @@ export default function AdminPosPage() {
   });
 
   useEffect(() => { safeSet(SETUP_KEY, setup); }, [setup]);
+  useEffect(() => { safeSet("montage_pos_test_v1", testMode); }, [testMode]);
 
   // Kiosk tabs stay open for hours: when a new version is deployed, reload
   // automatically, but only while idle (details screen with nothing typed).
@@ -93,13 +98,14 @@ export default function AdminPosPage() {
       const { data } = await axios.post(`${API}/bookings/admin/pos-receipt`, {
         name: customer.name.trim(), phone: customer.phone.trim(), email: customer.email.trim(),
         event_name: setup.event_name.trim(), extra_cc: setup.extra_cc,
-        method: "DuitNow QR", marketing_ok: marketing,
+        method: "DuitNow QR", marketing_ok: marketing, test_mode: testMode,
         items: validItems.map((it) => ({ description: it.description.trim(), qty: Number(it.qty), price: Number(it.price) })),
       }, { headers: { "x-admin-key": adminKey } });
       setResult(data);
       const next = { date: today(), count: log.count + 1, total: Math.round((log.total + total) * 100) / 100 };
-      setLog(next); safeSet(LOG_KEY, next);
+      if (!testMode) { setLog(next); safeSet(LOG_KEY, next); }
       setScreen("done");
+      loadSales(true);
     } catch (e) {
       if (e?.response?.status === 401) { setAuthed(false); setAuthError("Staff key rejected."); }
       else setError(e?.response?.data?.detail || "Could not send the receipt. Check the connection and try again.");
@@ -108,6 +114,7 @@ export default function AdminPosPage() {
   };
 
   const headers = { headers: { "x-admin-key": adminKey } };
+  useEffect(() => { if (authed) loadSales(true); /* eslint-disable-next-line */ }, [authed]);
   const loadPlayers = async () => {
     setPlayersLoading(true); setError("");
     try {
@@ -117,6 +124,34 @@ export default function AdminPosPage() {
       if (e?.response?.status === 401) { setAuthed(false); setAuthError("Staff key rejected."); }
       else setError("Could not load players.");
     } finally { setPlayersLoading(false); }
+  };
+  const loadSales = async (quiet) => {
+    if (!quiet) setSalesLoading(true);
+    try {
+      const { data } = await axios.get(`${API}/bookings/admin/pos-sales`, headers);
+      setSales(data.sales || []); setTotals(data.totals || null);
+    } catch (e) {
+      if (e?.response?.status === 401) { setAuthed(false); setAuthError("Staff key rejected."); }
+      else if (!quiet) setError("Could not load sales.");
+    } finally { setSalesLoading(false); }
+  };
+  const openSales = () => { setScreen("sales"); setError(""); loadSales(); };
+  const flagSale = async (s2, patch) => {
+    setBusyPhone(s2.receipt_no);
+    try { await axios.post(`${API}/bookings/admin/pos-sale-flag`, { receipt_no: s2.receipt_no, ...patch }, headers); await loadSales(true); }
+    catch { setError("Could not update. Try again."); }
+    finally { setBusyPhone(""); }
+  };
+  const fmtTime = (iso) => { try { return new Date(iso).toLocaleString("en-MY", { timeZone: "Asia/Kuala_Lumpur", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }); } catch { return iso; } };
+  const itemsText = (j) => { try { return JSON.parse(j).map((it) => `${it.description} x${it.qty}`).join("; "); } catch { return ""; } };
+  const downloadCsv = () => {
+    const q = (v) => `"${String(v == null ? "" : v).replace(/"/g, '""')}"`;
+    const rows = [["Receipt","Date (MYT)","Event","Customer","Phone","Email","Items","Total RM","Method","Test","Voided","Counted"]];
+    sales.forEach((r) => rows.push([r.receipt_no, fmtTime(r.created_at), r.event_name, r.customer_name, r.phone, r.email, itemsText(r.items_json), Number(r.total).toFixed(2), r.method, r.is_test ? "yes" : "no", r.voided ? "yes" : "no", r.is_test || r.voided ? "no" : "yes"]));
+    const blob = new Blob(["\ufeff" + rows.map((r) => r.map(q).join(",")).join("\n")], { type: "text/csv" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = `montage-pos-sales-${today()}.csv`; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   };
   const openPlayers = () => { setScreen("players"); loadPlayers(); };
   const markWinner = async (p, winner) => {
@@ -167,17 +202,25 @@ export default function AdminPosPage() {
       <div className="max-w-2xl mx-auto px-5 py-6">
         <header className="flex items-center justify-between mb-6">
           <h1 className="font-display font-black text-2xl tracking-tight">MONTAGE<span className="text-neon-cyan">.</span> <span className="text-white/50 font-semibold text-lg">Checkout</span></h1>
-          <div className="flex items-center gap-3">
-            <button onClick={screen === "players" ? next : openPlayers}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full border border-white/20 text-sm font-semibold">
-              {screen === "players" ? <><ArrowLeft size={14} /> Checkout</> : <><Trophy size={14} /> Players</>}
-            </button>
-            <p className="text-xs text-white/50 text-right">Today on this iPad<br /><b className="text-white/80">{log.count} sales · RM {money(log.total)}</b></p>
+          <div className="flex items-center gap-2">
+            {(screen === "players" || screen === "sales") ? (
+              <button onClick={next} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full border border-white/20 text-sm font-semibold"><ArrowLeft size={14} /> Checkout</button>
+            ) : (
+              <>
+                <button onClick={openSales} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-full border border-white/20 text-sm font-semibold"><Receipt size={14} /> Sales</button>
+                <button onClick={openPlayers} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-full border border-white/20 text-sm font-semibold"><Trophy size={14} /> Players</button>
+              </>
+            )}
+            <p className="text-xs text-white/50 text-right">Today (all devices)<br /><b className="text-white/80">{totals ? `${totals.today_count} sales · RM ${money(totals.today_revenue)}` : `${log.count} sales · RM ${money(log.total)}`}</b></p>
           </div>
         </header>
 
         {screen === "details" && (
           <div className="space-y-4">
+            <label className={`flex items-center gap-3 rounded-2xl border px-4 py-3 cursor-pointer ${testMode ? "border-orange-400 bg-orange-400/10" : "border-white/12"}`}>
+              <input type="checkbox" checked={testMode} onChange={(e) => setTestMode(e.target.checked)} className="w-5 h-5 accent-orange-400" />
+              <span className="text-sm"><b>Test mode</b> <span className="text-white/60">— sale is recorded but NOT counted in sales or players{testMode ? " (ON)" : ""}</span></span>
+            </label>
             <h2 className="font-display font-black text-3xl">Customer details</h2>
             <input className={inputCls} placeholder="Full name" autoComplete="off" value={customer.name}
               onChange={(e) => setCustomer({ ...customer, name: e.target.value })} aria-label="Customer name" />
@@ -275,6 +318,57 @@ export default function AdminPosPage() {
           </div>
         )}
 
+        {screen === "sales" && (
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-display font-black text-3xl">Sales <span className="text-white/40 text-base font-normal">({sales.length} entries)</span></h2>
+              <div className="flex items-center gap-4">
+                <button onClick={downloadCsv} disabled={!sales.length} className="inline-flex items-center gap-1 text-sm text-neon-cyan font-semibold disabled:opacity-30"><Download size={14} /> CSV</button>
+                <button onClick={() => loadSales()} className="text-sm text-neon-cyan font-semibold">Refresh</button>
+              </div>
+            </div>
+            {totals && (
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                <div className="rounded-2xl border border-white/12 p-4"><p className="text-xs text-white/50">Today</p><p className="font-display font-black text-2xl">RM {money(totals.today_revenue)}</p><p className="text-xs text-white/50">{totals.today_count} sales</p></div>
+                <div className="rounded-2xl border border-white/12 p-4"><p className="text-xs text-white/50">All time (real)</p><p className="font-display font-black text-2xl">RM {money(totals.all_revenue)}</p><p className="text-xs text-white/50">{totals.all_count} sales</p></div>
+                <div className="col-span-2 rounded-2xl border border-orange-400/30 p-3 text-sm text-white/60">Excluded (test or voided): {totals.excluded_count} entries · RM {money(totals.excluded_revenue)}</div>
+              </div>
+            )}
+            {error && <p className="mb-3 text-neon-pink text-sm" role="alert">{error}</p>}
+            {salesLoading ? (
+              <p className="text-white/50 py-10 text-center"><Loader2 className="inline animate-spin" size={18} /> Loading…</p>
+            ) : sales.length === 0 ? (
+              <p className="text-white/40 py-10 text-center text-sm">No sales recorded yet. Sales made from now on appear here.</p>
+            ) : (
+              <div className="space-y-2">
+                {sales.map((r) => {
+                  const excluded = r.is_test || r.voided;
+                  return (
+                    <div key={r.receipt_no} className={`rounded-2xl border p-3 ${excluded ? "border-white/8 opacity-60" : "border-white/12 bg-white/[0.03]"}`}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="font-semibold">{r.customer_name} <span className="text-white/40 font-normal text-sm">· {r.phone}</span></p>
+                          <p className="text-xs text-white/50 break-words">{itemsText(r.items_json)}</p>
+                          <p className="text-xs text-white/40">{r.receipt_no} · {fmtTime(r.created_at)}{r.email_sent ? "" : " · email not sent"}</p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className={`font-display font-black text-lg ${excluded ? "line-through" : ""}`}>RM {money(r.total)}</p>
+                          {r.is_test ? <span className="text-[10px] uppercase tracking-widest bg-orange-400 text-black px-2 py-0.5 rounded-full">Test</span> : null}
+                          {r.voided ? <span className="ml-1 text-[10px] uppercase tracking-widest bg-neon-pink text-black px-2 py-0.5 rounded-full">Void</span> : null}
+                        </div>
+                      </div>
+                      <div className="mt-2 flex gap-2">
+                        <button disabled={busyPhone === r.receipt_no} onClick={() => flagSale(r, { is_test: !r.is_test })} className="px-3 py-1.5 rounded-full border border-white/20 text-xs">{r.is_test ? "Not a test" : "Mark as test"}</button>
+                        <button disabled={busyPhone === r.receipt_no} onClick={() => flagSale(r, { voided: !r.voided })} className="px-3 py-1.5 rounded-full border border-white/20 text-xs">{r.voided ? "Restore" : "Void"}</button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
         {screen === "players" && (
           <div>
             <div className="flex items-center justify-between mb-4">
@@ -319,7 +413,11 @@ export default function AdminPosPage() {
             <h2 className="font-display font-black text-3xl mb-2">Receipt sent</h2>
             <p className="text-white/70">{result?.receipt_no} · RM {money(result?.total)}</p>
             <p className="text-white/50 text-sm mt-1">Emailed to {customer.email}</p>
-            {result && result.lead_saved === false && (
+            {result && result.sale_saved === false && (
+              <p className="mt-4 text-neon-pink text-sm" role="alert">Warning: this sale was NOT recorded in the sales list. Please write it down: {result.receipt_no}, {customer.name}, RM {money(result.total)}.</p>
+            )}
+            {result && result.test && <p className="mt-3 text-orange-300 text-sm">Test sale: not counted in totals.</p>}
+            {result && result.lead_saved === false && !result.test && (
               <p className="mt-4 text-neon-pink text-sm" role="alert">Warning: this customer was NOT saved to the Players list. Please note down their name and phone: {customer.name}, {customer.phone}.</p>
             )}
             <button onClick={next}
