@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
-import { Lock, Loader2, CheckCircle2, ArrowLeft, Plus, Minus, Trash2, QrCode, Send, UserPlus, Trophy, Phone, MessageCircle, Receipt, Download } from "lucide-react";
+import { Lock, Loader2, CheckCircle2, ArrowLeft, Plus, Minus, Trash2, QrCode, Send, UserPlus, Trophy, Phone, MessageCircle, Receipt, Download, Copy } from "lucide-react";
 
 const API = "/api";
 const SETUP_KEY = "montage_pos_setup_v1";
@@ -144,6 +144,29 @@ export default function AdminPosPage() {
   };
   const fmtTime = (iso) => { try { return new Date(iso).toLocaleString("en-MY", { timeZone: "Asia/Kuala_Lumpur", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }); } catch { return iso; } };
   const itemsText = (j) => { try { return JSON.parse(j).map((it) => `${it.description} x${it.qty}`).join("; "); } catch { return ""; } };
+  const dayKey = (iso) => { try { return new Date(new Date(iso).getTime() + 8 * 3600 * 1000).toISOString().slice(0, 10); } catch { return "?"; } };
+  const counted = sales.filter((r) => !r.is_test && !r.voided);
+  const byDay = Object.values(counted.reduce((m, r) => {
+    const k = dayKey(r.created_at);
+    (m[k] = m[k] || { day: k, count: 0, revenue: 0 });
+    m[k].count += 1; m[k].revenue += Number(r.total) || 0;
+    return m;
+  }, {})).sort((a, b) => (a.day < b.day ? 1 : -1));
+  const summaryText = () => {
+    const rev = counted.reduce((s2, r) => s2 + (Number(r.total) || 0), 0);
+    const ev = [...new Set(counted.map((r) => r.event_name).filter(Boolean))].join(", ");
+    const lines = [
+      "Montage Event Management - Sales summary" + (ev ? ` (${ev})` : ""),
+      `Total: RM ${money(rev)} from ${counted.length} paid sale${counted.length === 1 ? "" : "s"}`,
+      ...byDay.slice().reverse().map((d) => `${d.day}: ${d.count} sale${d.count === 1 ? "" : "s"}, RM ${money(d.revenue)}`),
+      `(Test and voided entries excluded: ${sales.length - counted.length})`,
+    ];
+    return lines.join("\n");
+  };
+  const copySummary = async () => {
+    try { await navigator.clipboard.writeText(summaryText()); setError(""); window.alert("Summary copied. Paste it into WhatsApp or email."); }
+    catch { window.prompt("Copy this summary:", summaryText()); }
+  };
   const downloadCsv = () => {
     const q = (v) => `"${String(v == null ? "" : v).replace(/"/g, '""')}"`;
     const rows = [["Receipt","Date (MYT)","Event","Customer","Phone","Email","Items","Total RM","Method","Test","Voided","Counted"]];
@@ -323,6 +346,7 @@ export default function AdminPosPage() {
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-display font-black text-3xl">Sales <span className="text-white/40 text-base font-normal">({sales.length} entries)</span></h2>
               <div className="flex items-center gap-4">
+                <button onClick={copySummary} disabled={!counted.length} className="inline-flex items-center gap-1 text-sm text-neon-cyan font-semibold disabled:opacity-30"><Copy size={14} /> Copy summary</button>
                 <button onClick={downloadCsv} disabled={!sales.length} className="inline-flex items-center gap-1 text-sm text-neon-cyan font-semibold disabled:opacity-30"><Download size={14} /> CSV</button>
                 <button onClick={() => loadSales()} className="text-sm text-neon-cyan font-semibold">Refresh</button>
               </div>
@@ -332,6 +356,14 @@ export default function AdminPosPage() {
                 <div className="rounded-2xl border border-white/12 p-4"><p className="text-xs text-white/50">Today</p><p className="font-display font-black text-2xl">RM {money(totals.today_revenue)}</p><p className="text-xs text-white/50">{totals.today_count} sales</p></div>
                 <div className="rounded-2xl border border-white/12 p-4"><p className="text-xs text-white/50">All time (real)</p><p className="font-display font-black text-2xl">RM {money(totals.all_revenue)}</p><p className="text-xs text-white/50">{totals.all_count} sales</p></div>
                 <div className="col-span-2 rounded-2xl border border-orange-400/30 p-3 text-sm text-white/60">Excluded (test or voided): {totals.excluded_count} entries · RM {money(totals.excluded_revenue)}</div>
+              </div>
+            )}
+            {byDay.length > 0 && (
+              <div className="rounded-2xl border border-white/12 mb-4 overflow-hidden">
+                <p className="px-4 py-2 text-[11px] uppercase tracking-[0.25em] font-bold text-neon-lime">By day (real sales)</p>
+                {byDay.map((d) => (
+                  <div key={d.day} className="flex justify-between px-4 py-2 border-t border-white/8 text-sm"><span>{d.day}</span><span className="text-white/60">{d.count} sale{d.count === 1 ? "" : "s"}</span><b>RM {money(d.revenue)}</b></div>
+                ))}
               </div>
             )}
             {error && <p className="mb-3 text-neon-pink text-sm" role="alert">{error}</p>}
