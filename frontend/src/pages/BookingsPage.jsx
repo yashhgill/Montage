@@ -9,7 +9,7 @@ import DiscoBall from "../components/DiscoBall";
 import CursorGlow from "../components/CursorGlow";
 
 const API = "/api";
-const R2 = "https://pub-b849c3b830534eeea60b6844defeeb9f.r2.dev/images/Packages";
+const R2 = "/img/Packages";
 
 const HEARD_OPTIONS = [
   { id: "recent_event", label: "At a recent Montage event", perk: true },

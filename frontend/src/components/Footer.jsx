@@ -2,7 +2,7 @@ import { Instagram } from "lucide-react";
 import { Link } from "react-router-dom";
 import { PHONE_DISPLAY, EMAIL, INSTAGRAM } from "../data/content";
 
-const LOGO = "https://pub-b849c3b830534eeea60b6844defeeb9f.r2.dev/images/montage-gold-logo.png";
+const LOGO = "/img/montage-gold-logo.png?w=400";
 
 export default function Footer() {
   return (

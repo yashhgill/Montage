@@ -11,6 +11,7 @@ export default function Hero() {
   const [isMobile, setIsMobile] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [wordIdx, setWordIdx] = useState(0);
+  const [restReady, setRestReady] = useState(false);
 
   useEffect(() => {
     const media = window.matchMedia("(max-width: 767px)");
@@ -18,6 +19,12 @@ export default function Hero() {
     sync();
     media.addEventListener("change", sync);
     return () => media.removeEventListener("change", sync);
+  }, []);
+
+  // Load only the first hero image up front; the other slides arrive after the page settles.
+  useEffect(() => {
+    const t = setTimeout(() => setRestReady(true), 2500);
+    return () => clearTimeout(t);
   }, []);
 
   useEffect(() => {
@@ -69,7 +76,7 @@ export default function Hero() {
 
       {/* Slideshow backdrop */}
       <div className="absolute inset-0">
-        {slides.map((src, i) => (
+        {slides.map((src, i) => (i > 0 && !restReady) ? null : (
           <div key={src} className={`hero-slide ${i === active ? "active" : ""}`}
             style={{ backgroundImage: `url('${src}')` }} aria-hidden="true" />
         ))}

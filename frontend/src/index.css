@@ -304,3 +304,6 @@
 @media (prefers-reduced-motion: reduce) {
     .hero-clip-reveal, .hero-word-swap { animation: none !important; }
 }
+
+/* Perf: skip rendering work for sections far below the fold until they are near the viewport */
+main section:not(#top), footer { content-visibility: auto; contain-intrinsic-size: auto 700px; }

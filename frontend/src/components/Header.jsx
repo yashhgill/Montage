@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Menu, X } from "lucide-react";
 import { Link } from "react-router-dom";
 
-const LOGO = "https://pub-b849c3b830534eeea60b6844defeeb9f.r2.dev/images/montage-gold-logo.png";
+const LOGO = "/img/montage-gold-logo.png?w=400";
 const NAV = [
   { label: "Services", href: "#services" },
   { label: "Clients", href: "#clients" },

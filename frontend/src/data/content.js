@@ -10,15 +10,16 @@ export const OWNER = "Mr. Jo";
 export const waLink = (msg) =>
   `https://wa.me/${PHONE}?text=${encodeURIComponent(msg)}`;
 
+const IMG = "/img"; // optimised + cached by /functions/img
 const R2 = "https://pub-b849c3b830534eeea60b6844defeeb9f.r2.dev/images";
 
 // ─────────────────────────────────────────────────────────────
 // HERO SLIDESHOW
 // ─────────────────────────────────────────────────────────────
 export const heroSlides = [
-  `${R2}/Hero/TVA_7542.jpg`,
-  `${R2}/Hero/photo_6332483980497719292_y.jpg`,
-  `${R2}/Hero/photo_6332483980497719305_y.jpg`,
+  `${IMG}/Hero/TVA_7542.jpg`,
+  `${IMG}/Hero/photo_6332483980497719292_y.jpg`,
+  `${IMG}/Hero/photo_6332483980497719305_y.jpg`,
 ];
 
 // ─────────────────────────────────────────────────────────────
@@ -33,13 +34,13 @@ export const services = [
     accent: "red",
     subtitle:
       "Portable bar setups with customised cocktails and mocktails crafted for every crowd — from corporate dinners to birthday blowouts.",
-    heroBg: `${R2}/Bar%20%26%20Beverages/photo_6316472874990421557_y.jpg`,
+    heroBg: `${IMG}/Bar%20%26%20Beverages/photo_6316472874990421557_y.jpg`,
     photos: [
-      { src: `${R2}/Bar%20%26%20Beverages/photo_6316472874990421557_y.jpg`, caption: "Bar Setup" },
-      { src: `${R2}/Bar%20%26%20Beverages/photo_6316472874990421486_y.jpg`, caption: "Cocktail Station" },
-      { src: `${R2}/Bar%20%26%20Beverages/photo_6316472874990421563_y.jpg`, caption: "Bar in Action" },
-      { src: `${R2}/Bar%20%26%20Beverages/photo_6332483980497719287_y.jpg`, caption: "Beverages" },
-      { src: `${R2}/Bar%20%26%20Beverages/IMG_20260529_232814_986.jpg`, caption: "Mocktail Bar" },
+      { src: `${IMG}/Bar%20%26%20Beverages/photo_6316472874990421557_y.jpg`, caption: "Bar Setup" },
+      { src: `${IMG}/Bar%20%26%20Beverages/photo_6316472874990421486_y.jpg`, caption: "Cocktail Station" },
+      { src: `${IMG}/Bar%20%26%20Beverages/photo_6316472874990421563_y.jpg`, caption: "Bar in Action" },
+      { src: `${IMG}/Bar%20%26%20Beverages/photo_6332483980497719287_y.jpg`, caption: "Beverages" },
+      { src: `${IMG}/Bar%20%26%20Beverages/IMG_20260529_232814_986.jpg`, caption: "Mocktail Bar" },
     ],
     videos: [
       `${R2}/Bar%20%26%20Beverages/VID-20260106-WA0080.mp4`,
@@ -61,11 +62,11 @@ export const services = [
     accent: "yellow",
     subtitle:
       "Clear audio, punchy bass, LED washes, moving lights, and neon atmosphere — professional sound and lighting tuned for your crowd.",
-    heroBg: `${R2}/Sound%20%26%20Lighting/photo_6332483980497719307_y.jpg`,
+    heroBg: `${IMG}/Sound%20%26%20Lighting/photo_6332483980497719307_y.jpg`,
     photos: [
-      { src: `${R2}/Sound%20%26%20Lighting/photo_6329969337275453838_x.jpg`, caption: "Stage Lighting" },
-      { src: `${R2}/Sound%20%26%20Lighting/photo_6329969337275453840_y.jpg`, caption: "LED Wash Setup" },
-      { src: `${R2}/Sound%20%26%20Lighting/photo_6332483980497719307_y.jpg`, caption: "Live Sound Setup" },
+      { src: `${IMG}/Sound%20%26%20Lighting/photo_6329969337275453838_x.jpg`, caption: "Stage Lighting" },
+      { src: `${IMG}/Sound%20%26%20Lighting/photo_6329969337275453840_y.jpg`, caption: "LED Wash Setup" },
+      { src: `${IMG}/Sound%20%26%20Lighting/photo_6332483980497719307_y.jpg`, caption: "Live Sound Setup" },
     ],
     videos: [
       `${R2}/Sound%20%26%20Lighting/document_6064284532490639690.mp4`,
@@ -86,12 +87,12 @@ export const services = [
     accent: "lime",
     subtitle:
       "Guests step on the platform, the arm spins, and walk away with a slow-motion video — instant share links, custom overlays, and classic photobooth prints for every table.",
-    heroBg: `${R2}/360%20Photobooth/photo_6316472874990421415_y.jpg`,
+    heroBg: `${IMG}/360%20Photobooth/photo_6316472874990421415_y.jpg`,
     photos: [
-      { src: `${R2}/360%20Photobooth/photo_6316472874990421415_y.jpg`, caption: "360 Camera Platforms" },
-      { src: `${R2}/360%20Photobooth/photo_6316472874990421466_y.jpg`, caption: "360 Camera Platforms" },
-      { src: `${R2}/360%20Photobooth/photo_6329969337275453826_y.jpg`, caption: "Photobooth Sesh" },
-      { src: `${R2}/360%20Photobooth/photo_6329969337275453827_y.jpg`, caption: "Photobooth Sesh" },
+      { src: `${IMG}/360%20Photobooth/photo_6316472874990421415_y.jpg`, caption: "360 Camera Platforms" },
+      { src: `${IMG}/360%20Photobooth/photo_6316472874990421466_y.jpg`, caption: "360 Camera Platforms" },
+      { src: `${IMG}/360%20Photobooth/photo_6329969337275453826_y.jpg`, caption: "Photobooth Sesh" },
+      { src: `${IMG}/360%20Photobooth/photo_6329969337275453827_y.jpg`, caption: "Photobooth Sesh" },
     ],
     videos: [
       `${R2}/360%20Photobooth/VID-20260318-WA0140.mp4`,
@@ -112,12 +113,12 @@ export const services = [
     accent: "orange",
     subtitle:
       "Professional event coverage — cinematic highlight videos, candid photography, drone shots, and same-day social media edits to make your event live online before guests leave.",
-    heroBg: `${R2}/Event%20Vibes/TVA_7534.jpg`,
+    heroBg: `${IMG}/Event%20Vibes/TVA_7534.jpg`,
     photos: [
-      { src: `${R2}/Event%20Vibes/TVA_7534.jpg`, caption: "Event Coverage" },
-      { src: `${R2}/Event%20Vibes/TVA_7559.jpg`, caption: "Candid Photography" },
-      { src: `${R2}/Event%20Vibes/TVA_7560.jpg`, caption: "Stage Coverage" },
-      { src: `${R2}/Event%20Vibes/TVA_7582.jpg`, caption: "Cinematic Highlight" },
+      { src: `${IMG}/Event%20Vibes/TVA_7534.jpg`, caption: "Event Coverage" },
+      { src: `${IMG}/Event%20Vibes/TVA_7559.jpg`, caption: "Candid Photography" },
+      { src: `${IMG}/Event%20Vibes/TVA_7560.jpg`, caption: "Stage Coverage" },
+      { src: `${IMG}/Event%20Vibes/TVA_7582.jpg`, caption: "Cinematic Highlight" },
     ],
     videos: [],
     details: [
@@ -135,12 +136,12 @@ export const services = [
     accent: "cyan",
     subtitle:
       "Claw machines, arcade cabinets, physical game stalls, and digital game stalls — a full play area that keeps guests energised between music moments.",
-    heroBg: `${R2}/Game%20Corners/photo_6321049192712835026_y.jpg`,
+    heroBg: `${IMG}/Game%20Corners/photo_6321049192712835026_y.jpg`,
     photos: [
-      { src: `${R2}/Game%20Corners/photo_6321049192712835026_y.jpg`, caption: "Game Corner" },
-      { src: `${R2}/Game%20Corners/photo_6332483980497719283_y.jpg`, caption: "Racing Simulator" },
-      { src: `${R2}/Game%20Corners/photo_6332483980497719285_y.jpg`, caption: "Arcade Games" },
-      { src: `${R2}/Game%20Corners/photo_6316472874990421470_y.jpg`, caption: "Inflatable Games" },
+      { src: `${IMG}/Game%20Corners/photo_6321049192712835026_y.jpg`, caption: "Game Corner" },
+      { src: `${IMG}/Game%20Corners/photo_6332483980497719283_y.jpg`, caption: "Racing Simulator" },
+      { src: `${IMG}/Game%20Corners/photo_6332483980497719285_y.jpg`, caption: "Arcade Games" },
+      { src: `${IMG}/Game%20Corners/photo_6316472874990421470_y.jpg`, caption: "Inflatable Games" },
     ],
     videos: [],
     details: [
@@ -158,13 +159,13 @@ export const services = [
     accent: "blue",
     subtitle:
       "Live entertainment that works the room — clowns, magicians, and mascots bring personality, laughs, and unforgettable moments to any celebration.",
-    heroBg: `${R2}/Entertainers/photo_6321049192712835034_w.jpg`,
+    heroBg: `${IMG}/Entertainers/photo_6321049192712835034_w.jpg`,
     photos: [
-      { src: `${R2}/Entertainers/photo_6329969337275453823_y.jpg`, caption: "Family Entertainment" },
-      { src: `${R2}/Entertainers/photo_6321049192712835034_w.jpg`, caption: "Carnival Activities" },
-      { src: `${R2}/Entertainers/photo_6329969337275453834_y.jpg`, caption: "Entertainer Moment" },
-      { src: `${R2}/Entertainers/photo_6321279321351762848_y.jpg`, caption: "Mascot Entertainment" },
-      { src: `${R2}/Entertainers/photo_6332483980497719266_y.jpg`, caption: "Live Character" },
+      { src: `${IMG}/Entertainers/photo_6329969337275453823_y.jpg`, caption: "Family Entertainment" },
+      { src: `${IMG}/Entertainers/photo_6321049192712835034_w.jpg`, caption: "Carnival Activities" },
+      { src: `${IMG}/Entertainers/photo_6329969337275453834_y.jpg`, caption: "Entertainer Moment" },
+      { src: `${IMG}/Entertainers/photo_6321279321351762848_y.jpg`, caption: "Mascot Entertainment" },
+      { src: `${IMG}/Entertainers/photo_6332483980497719266_y.jpg`, caption: "Live Character" },
     ],
     videos: [],
     details: [
@@ -182,12 +183,12 @@ export const services = [
     accent: "pink",
     subtitle:
       "Tell Montage your date, crowd size, and theme. They shape the full setup — from layout and logistics to atmosphere and entertainment — around your vision.",
-    heroBg: `${R2}/Event%20Planning/photo_6330141780212388534_y.jpg`,
+    heroBg: `${IMG}/Event%20Planning/photo_6330141780212388534_y.jpg`,
     photos: [
-      { src: `${R2}/Event%20Planning/photo_6330141780212388534_y.jpg`, caption: "Event Coordination" },
-      { src: `${R2}/Event%20Planning/photo_6330141780212388544_y.jpg`, caption: "Setup Day" },
-      { src: `${R2}/Event%20Planning/photo_6332483980497719292_y.jpg`, caption: "Full Event Package" },
-      { src: `${R2}/Event%20Planning/photo_6332483980497719293_y.jpg`, caption: "Guest Experience" },
+      { src: `${IMG}/Event%20Planning/photo_6330141780212388534_y.jpg`, caption: "Event Coordination" },
+      { src: `${IMG}/Event%20Planning/photo_6330141780212388544_y.jpg`, caption: "Setup Day" },
+      { src: `${IMG}/Event%20Planning/photo_6332483980497719292_y.jpg`, caption: "Full Event Package" },
+      { src: `${IMG}/Event%20Planning/photo_6332483980497719293_y.jpg`, caption: "Guest Experience" },
     ],
     videos: [],
     details: [
@@ -228,12 +229,12 @@ export const services = [
 // EXPERIENCE ZONE (bento grid on homepage)
 // ─────────────────────────────────────────────────────────────
 export const experience = [
-  { src: `${R2}/Experience%20Zone/ArcadeGame.jpg`, title: "Arcade Games", caption: "Retro competition and easy crowd energy.", large: true },
-  { src: `${R2}/Experience%20Zone/360%20Photobooth.jpg`, title: "Photobooth", caption: "Instant keepsakes for every table." },
-  { src: `${R2}/Experience%20Zone/Racing%20Simulator.jpg`, title: "Racing Simulator", caption: "Fast laps for competitive guests." },
-  { src: `${R2}/Experience%20Zone/Portable%20Bar%20Setup.jpg`, title: "Portable Bar Setup", caption: "Bartenders, cocktails, and beverage stations." },
-  { src: `${R2}/Experience%20Zone/Claw%20Machine.jpg`, title: "Kids Entertainment", caption: "Clowns, magicians, mascots, and inflatables." },
-  { src: `${R2}/Game%20Corners/photo_6332483980497719285_y.jpg`, title: "Full Game Zone", caption: "A play area between music moments." },
+  { src: `${IMG}/Experience%20Zone/ArcadeGame.jpg`, title: "Arcade Games", caption: "Retro competition and easy crowd energy.", large: true },
+  { src: `${IMG}/Experience%20Zone/360%20Photobooth.jpg`, title: "Photobooth", caption: "Instant keepsakes for every table." },
+  { src: `${IMG}/Experience%20Zone/Racing%20Simulator.jpg`, title: "Racing Simulator", caption: "Fast laps for competitive guests." },
+  { src: `${IMG}/Experience%20Zone/Portable%20Bar%20Setup.jpg`, title: "Portable Bar Setup", caption: "Bartenders, cocktails, and beverage stations." },
+  { src: `${IMG}/Experience%20Zone/Claw%20Machine.jpg`, title: "Kids Entertainment", caption: "Clowns, magicians, mascots, and inflatables." },
+  { src: `${IMG}/Game%20Corners/photo_6332483980497719285_y.jpg`, title: "Full Game Zone", caption: "A play area between music moments." },
 ];
 
 // ─────────────────────────────────────────────────────────────
@@ -242,44 +243,44 @@ export const experience = [
 export const galleryVideos = [
   {
     src: `${R2}/Event%20Vibes/IMG_2924.MP4`,
-    poster: `${R2}/Event%20Vibes/TVA_7534.jpg`,
+    poster: `${IMG}/Event%20Vibes/TVA_7534.jpg`,
   },
   {
     src: `${R2}/Event%20Vibes/IMG_3625.MP4`,
-    poster: `${R2}/Event%20Vibes/TVA_7559.jpg`,
+    poster: `${IMG}/Event%20Vibes/TVA_7559.jpg`,
   },
   {
     src: `${R2}/Event%20Vibes/document_6332483980037726236.mp4`,
-    poster: `${R2}/Event%20Vibes/TVA_7582.jpg`,
+    poster: `${IMG}/Event%20Vibes/TVA_7582.jpg`,
   },
   {
     src: `${R2}/Event%20Vibes/document_6332483980037726237.mp4`,
-    poster: `${R2}/Event%20Vibes/photo_6332483980497719305_y.jpg`,
+    poster: `${IMG}/Event%20Vibes/photo_6332483980497719305_y.jpg`,
   },
   {
     src: `${R2}/Event%20Vibes/document_6332483980037726241.mp4`,
-    poster: `${R2}/Event%20Vibes/photo_6330141780212388571_y.jpg`,
+    poster: `${IMG}/Event%20Vibes/photo_6330141780212388571_y.jpg`,
   },
 ];
 
 export const galleryPhotos = [
-  `${R2}/Event%20Vibes/TVA_7534.jpg`,
-  `${R2}/Event%20Vibes/TVA_7559.jpg`,
-  `${R2}/Event%20Vibes/TVA_7560.jpg`,
-  `${R2}/Event%20Vibes/TVA_7582.jpg`,
-  `${R2}/Event%20Vibes/photo_6332483980497719305_y.jpg`,
-  `${R2}/Event%20Vibes/photo_6332483980497719307_y.jpg`,
-  `${R2}/Event%20Vibes/photo_6332483980497719293_y.jpg`,
-  `${R2}/Event%20Vibes/photo_6332483980497719292_y.jpg`,
-  `${R2}/Event%20Vibes/photo_6332483980497719263_y.jpg`,
-  `${R2}/Event%20Vibes/photo_6330141780212388571_y.jpg`,
-  `${R2}/Event%20Vibes/photo_6330141780212388560_y.jpg`,
-  `${R2}/Event%20Vibes/photo_6330141780212388548_y.jpg`,
-  `${R2}/Event%20Vibes/photo_6330141780212388539_y.jpg`,
-  `${R2}/Event%20Vibes/photo_6321279321351762848_y.jpg`,
-  `${R2}/Event%20Vibes/photo_6321049192712835004_w.jpg`,
-  `${R2}/Event%20Vibes/photo_6316472874990421540_y.jpg`,
-  `${R2}/Event%20Vibes/photo_6316472874990421427_y.jpg`,
+  `${IMG}/Event%20Vibes/TVA_7534.jpg`,
+  `${IMG}/Event%20Vibes/TVA_7559.jpg`,
+  `${IMG}/Event%20Vibes/TVA_7560.jpg`,
+  `${IMG}/Event%20Vibes/TVA_7582.jpg`,
+  `${IMG}/Event%20Vibes/photo_6332483980497719305_y.jpg`,
+  `${IMG}/Event%20Vibes/photo_6332483980497719307_y.jpg`,
+  `${IMG}/Event%20Vibes/photo_6332483980497719293_y.jpg`,
+  `${IMG}/Event%20Vibes/photo_6332483980497719292_y.jpg`,
+  `${IMG}/Event%20Vibes/photo_6332483980497719263_y.jpg`,
+  `${IMG}/Event%20Vibes/photo_6330141780212388571_y.jpg`,
+  `${IMG}/Event%20Vibes/photo_6330141780212388560_y.jpg`,
+  `${IMG}/Event%20Vibes/photo_6330141780212388548_y.jpg`,
+  `${IMG}/Event%20Vibes/photo_6330141780212388539_y.jpg`,
+  `${IMG}/Event%20Vibes/photo_6321279321351762848_y.jpg`,
+  `${IMG}/Event%20Vibes/photo_6321049192712835004_w.jpg`,
+  `${IMG}/Event%20Vibes/photo_6316472874990421540_y.jpg`,
+  `${IMG}/Event%20Vibes/photo_6316472874990421427_y.jpg`,
 ];
 
 // ─────────────────────────────────────────────────────────────
