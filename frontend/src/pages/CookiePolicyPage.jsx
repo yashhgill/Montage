@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { Link } from "react-router-dom";
 
 const LAST_UPDATED = "13 September 2026";
-const EMAIL = "montage.eventmanagement@gmail.com";
+const EMAIL = "jojo@montageevents.my";
 
 export default function CookiePolicyPage() {
   useEffect(() => { window.scrollTo(0, 0); }, []);

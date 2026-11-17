@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 
 const LAST_UPDATED = "13 September 2026";
 const COMPANY = "Montage Event Management (MA0293072-D)";
-const EMAIL = "montage.eventmanagement@gmail.com";
+const EMAIL = "jojo@montageevents.my";
 const PHONE = "013-344 6521";
 
 export default function TermsPage() {
