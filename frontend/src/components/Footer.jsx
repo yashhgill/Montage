@@ -54,10 +54,10 @@ export default function Footer() {
       </div>
 
       <nav aria-label="Services" className="max-w-7xl mx-auto mt-8 flex flex-wrap justify-center gap-x-5 gap-y-2 text-xs text-white/50">
-        <a href="/event-management-shah-alam/" className="hover:text-white/80">Event Management Shah Alam</a>
+        <a href="/event-management-malaysia/" className="hover:text-white/80">Event Management Malaysia</a>
         <a href="/wedding-bar-malaysia/" className="hover:text-white/80">Wedding Bar Service</a>
-        <a href="/bbq-catering-shah-alam/" className="hover:text-white/80">BBQ &amp; Shisha Catering</a>
-        <a href="/photobooth-rental-shah-alam/" className="hover:text-white/80">360° Photobooth Rental</a>
+        <a href="/bbq-catering-malaysia/" className="hover:text-white/80">BBQ &amp; Shisha Catering</a>
+        <a href="/photobooth-rental-malaysia/" className="hover:text-white/80">360° Photobooth Rental</a>
       </nav>
 
       <div className="max-w-7xl mx-auto mt-10 pt-6 border-t border-white/5 flex flex-wrap justify-center gap-x-5 gap-y-2 text-xs text-white/40 mb-4">
