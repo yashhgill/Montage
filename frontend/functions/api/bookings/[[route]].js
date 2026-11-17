@@ -1,3 +1,4 @@
+import { safeEqual, randomString, rateLimit, adminAuth } from "../../_lib/security.js";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 
 // Cloudflare Pages Function — Montage booking API
@@ -65,7 +66,10 @@ export async function onRequest(context) {
     if (method === "GET" && head === "availability") return handleAvailability(env);
     if (method === "POST" && head === "create") return handleCreate(request, env);
     if (method === "POST" && head === "callback") return handleCallback(request, env);
-    if (method === "GET" && head === "status") return handleStatus(env, route[1]);
+    if (method === "GET" && head === "status") {
+      if (!(await rateLimit(env, request, "status", 60, 600))) return json({ detail: "Too many requests" }, 429);
+      return handleStatus(env, route[1]);
+    }
     if (method === "GET" && head === "promo") return handlePromo(env, route[1]);
     if (method === "GET" && head === "test-fire") return handleTestFire(request, env);
     if (method === "POST" && head === "admin" && route[1] === "manual-invoice") return handleAdminManualInvoice(request, env);
@@ -113,6 +117,7 @@ async function handleAvailability(env) {
 }
 
 async function handleCreate(request, env) {
+  if (!(await rateLimit(env, request, "create", 15, 600))) return json({ detail: "Too many requests. Please try again in a few minutes." }, 429);
   const b = await request.json();
   const required = ["name", "email", "phone", "package_id", "event_date", "time_slot", "venue"];
   for (const f of required) {
@@ -143,7 +148,7 @@ async function handleCreate(request, env) {
   }
 
   const reference = "MTG-" + new Date().toISOString().slice(2, 10).replace(/-/g, "") + "-" +
-    Math.random().toString(36).slice(2, 7).toUpperCase();
+    randomString(8);
   const siteUrl = env.SITE_URL || "https://montageevents.my";
 
   // apply an expo discount code to the deposit (server decides, never the client)
@@ -297,7 +302,7 @@ async function handleStatus(env, ref) {
     package_name: rec.package_name,
     event_date: rec.event_date,
     time_slot: rec.time_slot,
-    name: rec.name,
+    name: String(rec.name || "").trim().split(/\s+/)[0] || "",
     email_sent: !!rec.email_sent,
   });
 }
@@ -380,10 +385,9 @@ function fullPaymentDue(dateStr) {
 
 
 // ─── TEMPORARY demo endpoint — remove after demo ────────────
-function checkAdmin(request, env) {
-  const key = request.headers.get("x-admin-key") || "";
-  const expected = env.BOOKING_ADMIN_KEY || env.NEWSLETTER_ADMIN_KEY;
-  return !!expected && key === expected;
+async function checkAdmin(request, env) {
+  return adminAuth(env, request, env.BOOKING_ADMIN_KEY || env.NEWSLETTER_ADMIN_KEY
+  );
 }
 
 // ─── Staff manual invoice: key in an order taken by phone/in-person, ────────
@@ -393,7 +397,7 @@ function checkAdmin(request, env) {
 // block no calendar date, and save nothing to D1. The invoice number shown is
 // only a preview (peeked, not consumed) so previewing never skips a real number.
 async function handlePreviewInvoice(request, env) {
-  if (!checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
+  if (!await checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
   let b;
   try { b = await request.json(); } catch { return json({ detail: "Invalid request" }, 400); }
 
@@ -437,7 +441,7 @@ async function handlePreviewInvoice(request, env) {
 }
 
 async function handleAdminManualInvoice(request, env) {
-  if (!checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
+  if (!await checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
   let b;
   try { b = await request.json(); } catch { return json({ detail: "Invalid request" }, 400); }
 
@@ -479,7 +483,7 @@ async function handleAdminManualInvoice(request, env) {
   if (subtotal <= 0) return json({ detail: "Total amount must be greater than zero" }, 400);
 
   const reference = "MTG-STAFF-" + new Date().toISOString().slice(2, 10).replace(/-/g, "") +
-    "-" + Math.random().toString(36).slice(2, 6).toUpperCase();
+    "-" + randomString(6);
   const summaryName = items.length === 1 ? items[0].heading : `${items[0].heading} + ${items.length - 1} more item(s)`;
   const summaryPriceStr = "RM " + subtotal.toLocaleString("en-MY");
   const amountDueNow = amountPaid > 0 ? Math.min(amountPaid, subtotal) : subtotal;
@@ -517,13 +521,13 @@ async function handleAdminManualInvoice(request, env) {
 async function handleTestFire(request, env) {
   const url = new URL(request.url);
   const key = url.searchParams.get("key") || "";
-  if (!env.TEST_FIRE_KEY || key !== env.TEST_FIRE_KEY) return json({ detail: "Unauthorized" }, 401);
+  if (!env.TEST_FIRE_KEY || !(await safeEqual(key, env.TEST_FIRE_KEY))) return json({ detail: "Unauthorized" }, 401);
   const email = url.searchParams.get("email") || env.GMAIL_SENDER;
   const name = url.searchParams.get("name") || "Demo Guest";
 
   const d = new Date(Date.now() + 60 * 864e5);
   const eventDate = d.toISOString().slice(0, 10);
-  const reference = "MTG-DEMO-" + Math.random().toString(36).slice(2, 6).toUpperCase();
+  const reference = "MTG-DEMO-" + randomString(6);
   const rec = {
     reference, status: "paid",
     package_name: "Wedding Signature", package_price: "RM 7,999",
@@ -1094,7 +1098,7 @@ async function buildQuotationPdf(env, rec) {
 
 // POST /api/bookings/admin/quotation — generate and email a quotation PDF
 async function handleAdminQuotation(request, env) {
-  if (!checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
+  if (!await checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
   let b; try { b = await request.json(); } catch { return json({ detail: "Invalid JSON" }, 400); }
 
   const billToName = String(b.bill_to_name || b.name || "").trim().slice(0,120);
@@ -1118,7 +1122,7 @@ async function handleAdminQuotation(request, env) {
   const subtotal = items.reduce((s,it)=>s+(Number(it.amount)||0),0);
   if (subtotal <= 0) return json({ detail: "Total must be greater than zero" }, 400);
 
-  const quoteNo = "QT" + new Date().toISOString().slice(2,10).replace(/-/g,"") + "-" + Math.random().toString(36).slice(2,5).toUpperCase();
+  const quoteNo = "QT" + new Date().toISOString().slice(2,10).replace(/-/g,"") + "-" + randomString(5);
   const dateStr = new Date().toLocaleDateString("en-GB");
   const rec = { bill_to_name:billToName, bill_to_address:billToAddress, email:toEmail, date:dateStr, valid_until:validUntil, quote_no:quoteNo, items, remarks, cc, bcc };
 
@@ -1144,7 +1148,7 @@ ${validUntil?`<p style="margin:0 0 10px"><b>Valid Until:</b> ${validUntil}</p>`:
 <p style="color:#777;font-size:12px;margin-top:24px">Montage Event Management &middot; Shah Alam, Malaysia</p>
 </div>`;
     const token = await getGoogleAccessToken(env);
-    const boundary = "montage_"+Math.random().toString(36).slice(2);
+    const boundary = "montage_"+randomString(16);
     const fileName = quoteNo.replace(/[^a-zA-Z0-9]/g,"-")+".pdf";
     let raw = `From: Montage Events <${env.GMAIL_SENDER}>\r\nTo: ${toEmail}\r\n`+(ccList.length?`Cc: ${ccList.join(", ")}\r\n`:"")+`Bcc: ${bccList.join(", ")}\r\nSubject: Quotation ${quoteNo} from Montage Event Management\r\nMIME-Version: 1.0\r\nContent-Type: multipart/mixed; boundary="${boundary}"\r\n\r\n--${boundary}\r\nContent-Type: text/html; charset=UTF-8\r\n\r\n${html}\r\n--${boundary}\r\nContent-Type: application/pdf; name="${fileName}"\r\nContent-Disposition: attachment; filename="${fileName}"\r\nContent-Transfer-Encoding: base64\r\n\r\n${pdfB64.replace(/(.{76})/g,"$1\r\n")}\r\n--${boundary}--`;
     const res = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send",{method:"POST",headers:{authorization:`Bearer ${token}`,"content-type":"application/json"},body:JSON.stringify({raw:b64urlFromString(raw)})});
@@ -1156,7 +1160,7 @@ ${validUntil?`<p style="margin:0 0 10px"><b>Valid Until:</b> ${validUntil}</p>`:
 
 // POST /api/bookings/admin/preview-quotation — generate PDF without sending
 async function handlePreviewQuotation(request, env) {
-  if (!checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
+  if (!await checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
   let b; try { b = await request.json(); } catch { return json({ detail: "Invalid JSON" }, 400); }
   const billToName = String(b.bill_to_name || b.name || "Customer").trim();
   const billToAddress = String(b.bill_to_address || "").split("\n").map(s=>s.trim()).filter(Boolean);
@@ -1191,7 +1195,7 @@ const ALLOWED_TYPES = new Set(["image/jpeg","image/jpg","image/png","image/webp"
 const MAX_SIZE_BYTES = 200 * 1024 * 1024; // 200 MB
 
 async function handleUploadMedia(request, env) {
-  if (!checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
+  if (!await checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
   if (!env.SITE_IMAGES_BUCKET) return json({ detail: "R2 bucket binding not configured. Add SITE_IMAGES_BUCKET binding in Cloudflare Pages settings." }, 503);
 
   let formData;
@@ -1250,7 +1254,7 @@ async function handleGetSiteImages(request, env) {
 // POST /api/bookings/admin/site-images  — staff sets/updates an image override
 // Body: { key, url, label }
 async function handleSetSiteImage(request, env) {
-  if (!checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
+  if (!await checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
   let b;
   try { b = await request.json(); } catch { return json({ detail: "Invalid JSON" }, 400); }
 
@@ -1273,7 +1277,7 @@ async function handleSetSiteImage(request, env) {
 // DELETE /api/bookings/admin/site-images  — staff resets an image back to default
 // Body: { key }
 async function handleDeleteSiteImage(request, env) {
-  if (!checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
+  if (!await checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
   let b;
   try { b = await request.json(); } catch { return json({ detail: "Invalid JSON" }, 400); }
   const key = String(b.key || "").trim();
@@ -1309,7 +1313,7 @@ async function handleGetCustomPackage(request, env, token) {
 
 // POST /api/bookings/admin/custom-package  — staff creates a custom package
 async function handleCreateCustomPackage(request, env) {
-  if (!checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
+  if (!await checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
   let b;
   try { b = await request.json(); } catch { return json({ detail: "Invalid JSON" }, 400); }
 
@@ -1324,7 +1328,7 @@ async function handleCreateCustomPackage(request, env) {
   if (!name) return json({ detail: "Package name is required" }, 400);
   if (!totalRm || totalRm <= 0) return json({ detail: "Total must be greater than 0" }, 400);
 
-  const token = "CP" + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2,6).toUpperCase();
+  const token = "CP" + Date.now().toString(36).toUpperCase() + randomString(16);
   const now = new Date().toISOString();
   const expiresAt = new Date(Date.now() + expiryDays * 86400000).toISOString();
 
@@ -1386,7 +1390,7 @@ ${isPartial ? `<p style="margin:8px 0 0;color:#B8FF2D">Balance of RM ${balance.t
   const ccList = parseAddrList(rec.cc);
   const bccList = Array.from(new Set([env.GMAIL_SENDER, ...parseAddrList(rec.bcc)].filter(Boolean)));
 
-  const boundary = "montage_" + Math.random().toString(36).slice(2);
+  const boundary = "montage_" + randomString(16);
   let raw =
     `From: Montage Events <${env.GMAIL_SENDER}>\r\n` +
     `To: ${rec.email}\r\n` +
@@ -1458,7 +1462,7 @@ ${rec.promo_discount_rm ? `<p style="margin:0;color:#B8FF2D"><b>Expo code ${rec.
   const ccList = parseAddrList(rec.cc);
   const bccList = Array.from(new Set([env.GMAIL_SENDER, ...parseAddrList(rec.bcc)].filter(Boolean)));
 
-  const boundary = "montage_" + Math.random().toString(36).slice(2);
+  const boundary = "montage_" + randomString(16);
   let raw =
     `From: Montage Events <${env.GMAIL_SENDER}>\r\n` +
     `To: ${rec.email}\r\n` +
@@ -1584,7 +1588,7 @@ async function buildPosReceiptPdf(env, rec) {
 
 // POST /api/bookings/admin/pos-receipt
 async function handlePosReceipt(request, env) {
-  if (!checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
+  if (!await checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
   let b; try { b = await request.json(); } catch { return json({ detail: "Invalid JSON" }, 400); }
 
   const name = String(b.name || "").trim().slice(0, 100);
@@ -1612,7 +1616,7 @@ async function handlePosReceipt(request, env) {
 
   const my = new Date(Date.now() + 8 * 3600 * 1000); // Malaysia time
   const receiptNo = "RCP" + my.toISOString().slice(2, 10).replace(/-/g, "") + "-" +
-    Math.random().toString(36).slice(2, 6).toUpperCase();
+    randomString(6);
   const dateStr = my.toISOString().slice(8, 10) + "/" + my.toISOString().slice(5, 7) + "/" +
     my.toISOString().slice(0, 4) + " " + my.toISOString().slice(11, 16);
   const rec = { name, email, phone, event_name: eventName, method, items, total, receipt_no: receiptNo, date_str: dateStr };
@@ -1673,7 +1677,7 @@ ${items.map((it) => `<p style="margin:0 0 10px"><b>${escHtml(it.description)}</b
 </div>
 <p style="color:#777;font-size:12px;margin-top:24px">Montage Event Management &middot; Shah Alam, Malaysia<br/>Reply to this email with any questions.</p>
 </div>`;
-    const boundary = "montage_" + Math.random().toString(36).slice(2);
+    const boundary = "montage_" + randomString(16);
     const fileName = receiptNo.replace(/[^a-zA-Z0-9]/g, "-") + ".pdf";
     const pdfB64 = bytesToBase64(pdfBytes);
     const raw =
@@ -1716,7 +1720,7 @@ async function ensurePosTables(env) {
 
 // GET /api/bookings/admin/pos-players — paying customers (real sales only), with winner flag
 async function handlePosPlayers(request, env) {
-  if (!checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
+  if (!await checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
   await ensurePosTables(env);
   const { results } = await env.DB.prepare(
     `SELECT s.phone AS phone, MAX(s.customer_name) AS name, MAX(s.email) AS email,
@@ -1737,7 +1741,7 @@ async function handlePosPlayers(request, env) {
 
 // POST /api/bookings/admin/pos-winner  { phone, winner: true|false, note }
 async function handlePosWinner(request, env) {
-  if (!checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
+  if (!await checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
   await ensurePosTables(env);
   let b; try { b = await request.json(); } catch { return json({ detail: "Invalid JSON" }, 400); }
   const phone = String(b.phone || "").trim();
@@ -1760,7 +1764,7 @@ async function handlePosWinner(request, env) {
 
 // GET /api/bookings/admin/pos-sales — totals (real sales only) + recent list
 async function handlePosSales(request, env) {
-  if (!checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
+  if (!await checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
   await ensurePosTables(env);
   const real = `is_test=0 AND voided=0`;
   const tot = await env.DB.prepare(
@@ -1783,7 +1787,7 @@ async function handlePosSales(request, env) {
 
 // POST /api/bookings/admin/pos-sale-flag  { receipt_no, is_test?, voided? }
 async function handlePosSaleFlag(request, env) {
-  if (!checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
+  if (!await checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
   await ensurePosTables(env);
   let b; try { b = await request.json(); } catch { return json({ detail: "Invalid JSON" }, 400); }
   const ref = String(b.receipt_no || "").trim();

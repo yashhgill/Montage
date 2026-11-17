@@ -1,3 +1,4 @@
+import { safeEqual, randomString, rateLimit, adminAuth } from "../../_lib/security.js";
 // Cloudflare Pages Function — Montage expo game API
 //   POST /api/expo/claim          (x-admin-key)  { name, phone, email, consent, score }
 //   GET  /api/expo/admin/list     (x-admin-key)
@@ -27,10 +28,9 @@ export async function onRequest(context) {
   }
 }
 
-function checkAdmin(request, env) {
-  const key = request.headers.get("x-admin-key") || "";
-  const expected = env.EXPO_ADMIN_KEY || env.NEWSLETTER_ADMIN_KEY;
-  return !!expected && key === expected;
+async function checkAdmin(request, env) {
+  return adminAuth(env, request, env.EXPO_ADMIN_KEY || env.NEWSLETTER_ADMIN_KEY
+  );
 }
 
 // The "unbeaten record" shown on the kiosk screen. Realistically far above what
@@ -56,10 +56,7 @@ function discountFor(score) {
 }
 
 function makeCode() {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no confusing 0/O/1/I
-  let s = "";
-  for (let i = 0; i < 5; i++) s += chars[Math.floor(Math.random() * chars.length)];
-  return "MTG-EXPO-" + s;
+  return "MTG-EXPO-" + randomString(8);
 }
 
 function fmtDate(d) {
@@ -67,7 +64,8 @@ function fmtDate(d) {
 }
 
 async function handleClaim(request, env) {
-  if (!checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
+  if (!(await rateLimit(env, request, "claim", 10, 600))) return json({ detail: "Too many requests. Please try again later." }, 429);
+  if (!await checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
   let b;
   try { b = await request.json(); } catch { return json({ detail: "Invalid request" }, 400); }
 
@@ -131,7 +129,7 @@ async function handleClaim(request, env) {
 }
 
 async function handleList(request, env) {
-  if (!checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
+  if (!await checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
   const { results } = await env.DB.prepare(
     `SELECT code, name, phone, email, score, discount_pct, status, valid_until, created_at
      FROM expo_prizes ORDER BY created_at DESC`
@@ -140,7 +138,7 @@ async function handleList(request, env) {
 }
 
 async function handleLeaderboard(request, env) {
-  if (!checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
+  if (!await checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
   const { results } = await env.DB.prepare(
     `SELECT name, score, discount_pct, created_at FROM expo_prizes ORDER BY score DESC LIMIT 10`
   ).all();
@@ -152,7 +150,7 @@ async function handleLeaderboard(request, env) {
 }
 
 async function handleRedeem(request, env) {
-  if (!checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
+  if (!await checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
   let b;
   try { b = await request.json(); } catch { return json({ detail: "Invalid request" }, 400); }
   const code = String(b.code || "").trim().toUpperCase();

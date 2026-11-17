@@ -1,3 +1,4 @@
+import { safeEqual, randomString, rateLimit, adminAuth } from "../../_lib/security.js";
 // Cloudflare Pages Function — Montage newsletter API
 // Routes (same origin): /api/newsletter/*
 //   POST /api/newsletter/subscribe        { email, name? }
@@ -35,6 +36,7 @@ export async function onRequest(context) {
 
 // ─── Subscribe ──────────────────────────────────────────────
 async function handleSubscribe(request, env) {
+  if (!(await rateLimit(env, request, "sub", 10, 600))) return json({ detail: "Too many requests. Please try again later." }, 429);
   let body;
   try { body = await request.json(); } catch { return json({ detail: "Invalid request" }, 400); }
   const email = String(body.email || "").trim().toLowerCase();
@@ -56,6 +58,7 @@ async function handleSubscribe(request, env) {
 
 // ─── Lead capture (name + phone + email + consent) ──────────
 async function handleLead(request, env) {
+  if (!(await rateLimit(env, request, "lead", 10, 600))) return json({ detail: "Too many requests. Please try again later." }, 429);
   let body;
   try { body = await request.json(); } catch { return json({ detail: "Invalid request" }, 400); }
   const name = String(body.name || "").trim();
@@ -95,7 +98,7 @@ async function handleLead(request, env) {
 
 // ─── Admin: view leads (view-only, no export endpoint) ──────
 async function handleLeadsList(request, env) {
-  if (!checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
+  if (!await checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
   const { results } = await env.DB.prepare(
     `SELECT phone, name, email, source, event_type, message, status, created_at FROM leads ORDER BY created_at DESC`
   ).all();
@@ -103,13 +106,12 @@ async function handleLeadsList(request, env) {
 }
 
 // ─── Admin: list subscribers ────────────────────────────────
-function checkAdmin(request, env) {
-  const key = request.headers.get("x-admin-key") || "";
-  return env.NEWSLETTER_ADMIN_KEY && key === env.NEWSLETTER_ADMIN_KEY;
+async function checkAdmin(request, env) {
+  return adminAuth(env, request, env.NEWSLETTER_ADMIN_KEY);
 }
 
 async function handleList(request, env) {
-  if (!checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
+  if (!await checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
   const { results } = await env.DB.prepare(
     `SELECT email, name, status, created_at FROM newsletter_subscribers
      WHERE status='active' ORDER BY created_at DESC`
@@ -120,7 +122,7 @@ async function handleList(request, env) {
 
 // ─── Admin: render preview HTML (no send) ───────────────────
 async function handlePreview(request, env) {
-  if (!checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
+  if (!await checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
   let body;
   try { body = await request.json(); } catch { return json({ detail: "Invalid request" }, 400); }
   const heading = String(body.heading || "").trim();
@@ -132,7 +134,7 @@ async function handlePreview(request, env) {
 
 // ─── Admin: send newsletter to all active subscribers ───────
 async function handleSend(request, env) {
-  if (!checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
+  if (!await checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
   let body;
   try { body = await request.json(); } catch { return json({ detail: "Invalid request" }, 400); }
 

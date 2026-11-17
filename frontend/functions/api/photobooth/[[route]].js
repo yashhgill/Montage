@@ -1,3 +1,4 @@
+import { safeEqual, randomString, rateLimit, adminAuth } from "../../_lib/security.js";
 // Cloudflare Pages Function — Montage AI Photobooth API
 // Routes (same origin): /api/photobooth/*
 //   POST /api/photobooth/capture-inbox   (x-capture-key)  raw JPEG bytes, ?filename=
@@ -33,10 +34,7 @@ function uid() {
   return crypto.randomUUID();
 }
 function shareToken() {
-  const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
-  let s = "";
-  for (let i = 0; i < 10; i++) s += chars[Math.floor(Math.random() * chars.length)];
-  return s;
+  return randomString(16, "abcdefghijklmnopqrstuvwxyz0123456789");
 }
 
 export async function onRequest(context) {
@@ -65,17 +63,16 @@ export async function onRequest(context) {
   }
 }
 
-function checkAdmin(request, env) {
-  const key = request.headers.get("x-admin-key") || "";
-  const expected = env.PHOTOBOOTH_ADMIN_KEY || env.NEWSLETTER_ADMIN_KEY;
-  return !!expected && key === expected;
+async function checkAdmin(request, env) {
+  return adminAuth(env, request, env.PHOTOBOOTH_ADMIN_KEY || env.NEWSLETTER_ADMIN_KEY
+  );
 }
 
 // ─── Companion PC uploads a freshly captured DSLR photo ────
 async function handleCaptureInbox(request, env) {
   const url = new URL(request.url);
   const key = request.headers.get("x-capture-key") || url.searchParams.get("key") || "";
-  if (!env.CAPTURE_UPLOAD_KEY || key !== env.CAPTURE_UPLOAD_KEY) return json({ detail: "Unauthorized" }, 401);
+  if (!env.CAPTURE_UPLOAD_KEY || !(await safeEqual(key, env.CAPTURE_UPLOAD_KEY))) return json({ detail: "Unauthorized" }, 401);
 
   const bytes = await request.arrayBuffer();
   if (!bytes || bytes.byteLength < 100) return json({ detail: "Empty upload" }, 400);
@@ -205,7 +202,7 @@ async function handleConfig(env) {
 
 // ─── Admin: save couple name + capture mode ───
 async function handleSaveSettings(request, env) {
-  if (!checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
+  if (!await checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
   let b;
   try { b = await request.json(); } catch { return json({ detail: "Invalid request" }, 400); }
   const coupleNames = String(b.couple_names || "").trim().slice(0, 120);
@@ -220,7 +217,7 @@ async function handleSaveSettings(request, env) {
 
 // ─── Admin: upload the couple's DuitNow QR image ───
 async function handleSaveQr(request, env) {
-  if (!checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
+  if (!await checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
   const bytes = await request.arrayBuffer();
   if (!bytes || bytes.byteLength < 50) return json({ detail: "Empty upload" }, 400);
   const key = "settings/duitnow-qr.png";
@@ -277,7 +274,7 @@ async function handleImg(env, id, type) {
 
 // ─── Admin: browse every finished portrait + wish ───
 async function handleGallery(request, env) {
-  if (!checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
+  if (!await checkAdmin(request, env)) return json({ detail: "Unauthorized" }, 401);
   const { results } = await env.DB.prepare(
     `SELECT id, style, guest_name, message, share_token, ready_at
      FROM photobooth_entries WHERE status='ready' ORDER BY ready_at DESC LIMIT 200`
