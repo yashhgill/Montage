@@ -55,6 +55,7 @@ export default function Footer() {
 
       <nav aria-label="Services" className="max-w-7xl mx-auto mt-8 flex flex-wrap justify-center gap-x-5 gap-y-2 text-xs text-white/50">
         <a href="/event-management-malaysia/" className="hover:text-white/80">Event Management Malaysia</a>
+        <a href="/corporate-event-bar-malaysia/" className="hover:text-white/80">Corporate Event Bars</a>
         <a href="/wedding-bar-malaysia/" className="hover:text-white/80">Wedding Bar Service</a>
         <a href="/bbq-catering-malaysia/" className="hover:text-white/80">BBQ &amp; Shisha Catering</a>
         <a href="/photobooth-rental-malaysia/" className="hover:text-white/80">360° Photobooth Rental</a>
