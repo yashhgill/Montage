@@ -1,10 +1,19 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Lock, FileText, Package, Gamepad2, Mail, Camera, LayoutDashboard, ExternalLink, ChevronRight, Image, ClipboardList, QrCode
+  Lock, FileText, Package, Gamepad2, Mail, Camera, LayoutDashboard, ExternalLink, ChevronRight, Image, ClipboardList, QrCode, BarChart3
 } from "lucide-react";
 
 const TOOLS = [
+  {
+    id: "analytics",
+    title: "Analytics",
+    subtitle: "Visitors, locations & clicks",
+    description: "See how many people visit, where they come from, what they browse and click, and how many turn into bookings.",
+    icon: BarChart3,
+    path: "/admin/analytics",
+    color: "neon-cyan",
+  },
   {
     id: "invoice",
     title: "Invoice",

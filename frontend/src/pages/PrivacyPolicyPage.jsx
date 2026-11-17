@@ -94,7 +94,7 @@ export default function PrivacyPolicyPage() {
         <Section title="8. Cookies">
           <p>Our website uses minimal technical cookies. See our <Link to="/cookies" className="text-neon-cyan hover:underline">Cookie Policy</Link> for full details.</p>
           <p>We use Google Fonts (a Google service) which loads fonts from Google's servers. This may result in Google receiving your IP address. We have added a <code>preconnect</code> resource hint but do not control Google's use of that data. You can opt out by using a browser that blocks third-party requests.</p>
-          <p>We do not use advertising cookies, tracking pixels, or analytics tools.</p>
+          <p>We do not use advertising cookies or tracking pixels. We use simple, anonymous first-party analytics (pages viewed, approximate country and city, device type and which buttons are clicked) to improve the website. It does not use cookies, does not store your IP address and cannot identify you personally.</p>
         </Section>
 
         <Section title="9. Your Rights Under PDPA">

@@ -1,4 +1,7 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { useEffect } from "react";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { trackPageview, initClickTracking } from "@/lib/analytics";
+import AdminAnalyticsPage from "@/pages/AdminAnalyticsPage";
 import { ImageOverridesProvider } from "@/context/ImageOverridesContext";
 import HomePage from "@/pages/HomePage";
 import BookingsPage from "@/pages/BookingsPage";
@@ -19,10 +22,18 @@ import TermsPage from "@/pages/TermsPage";
 import RefundPolicyPage from "@/pages/RefundPolicyPage";
 import CookiePolicyPage from "@/pages/CookiePolicyPage";
 
+function Tracker() {
+  const { pathname } = useLocation();
+  useEffect(() => { trackPageview(pathname); }, [pathname]);
+  useEffect(() => initClickTracking(), []);
+  return null;
+}
+
 function App() {
   return (
     <BrowserRouter>
       <ImageOverridesProvider>
+      <Tracker />
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/bookings" element={<BookingsPage />} />
@@ -30,6 +41,7 @@ function App() {
         <Route path="/admin" element={<AdminDashboardPage />} />
         <Route path="/admin/site-photos" element={<AdminSitePhotosPage />} />
         <Route path="/admin/quotation" element={<AdminQuotationPage />} />
+        <Route path="/admin/analytics" element={<AdminAnalyticsPage />} />
         <Route path="/admin/pos" element={<AdminPosPage />} />
         <Route path="/admin/newsletter" element={<AdminNewsletterPage />} />
         <Route path="/admin/expo" element={<AdminExpoGamePage />} />
