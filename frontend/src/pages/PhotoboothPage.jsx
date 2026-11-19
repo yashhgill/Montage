@@ -1,13 +1,52 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import axios from "axios";
-import { Camera, Loader2, Check, RotateCcw, Heart, QrCode, Sparkles, Video } from "lucide-react";
+import { Camera, Loader2, Check, RotateCcw, Heart, QrCode, Sparkles, Video, Lock } from "lucide-react";
 import PartyLights from "../components/PartyLights";
 import DiscoBall from "../components/DiscoBall";
 
 const API = "/api";
 const CLAIM_TIMEOUT_MS = 90000; // give the photographer 90s to take + upload the shot
 
+const KEY_STORE = "montage_booth_key";
+const readKey = () => { try { return localStorage.getItem(KEY_STORE) || ""; } catch { return ""; } };
+if (readKey()) axios.defaults.headers.common["x-admin-key"] = readKey();
+
+// Staff unlock: the kiosk is an admin tool. Once unlocked, this device stays unlocked for guests.
+function KioskLock({ onUnlock }) {
+  const [key, setKey] = useState("");
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+  const submit = async () => {
+    setBusy(true); setErr("");
+    try {
+      await axios.get(`${API}/photobooth/admin/verify`, { headers: { "x-admin-key": key.trim() } });
+      try { localStorage.setItem(KEY_STORE, key.trim()); } catch { /* ignore */ }
+      axios.defaults.headers.common["x-admin-key"] = key.trim();
+      onUnlock();
+    } catch { setErr("Wrong key, or too many attempts. Try again in a few minutes."); } finally { setBusy(false); }
+  };
+  return (
+    <div className="min-h-screen bg-[#050508] text-white flex items-center justify-center p-6">
+      <div className="w-full max-w-sm text-center">
+        <Lock className="mx-auto mb-4 text-neon-cyan" size={32} />
+        <h1 className="text-2xl font-black mb-1">Photobooth kiosk</h1>
+        <p className="text-white/50 text-sm mb-4">Staff only — enter the admin key to start the booth.</p>
+        <input type="password" value={key} onChange={(e) => setKey(e.target.value)} onKeyDown={(e) => e.key === "Enter" && submit()}
+          placeholder="Admin key" className="w-full bg-white/[0.05] border border-white/15 rounded-2xl px-5 py-4 outline-none focus:border-neon-cyan" />
+        {err && <p className="text-red-400 text-sm mt-2">{err}</p>}
+        <button onClick={submit} disabled={busy || !key.trim()} className="mt-4 w-full py-4 rounded-2xl bg-neon-cyan text-black font-bold disabled:opacity-50">{busy ? "Checking…" : "Unlock"}</button>
+      </div>
+    </div>
+  );
+}
+
 export default function PhotoboothPage() {
+  const [unlocked, setUnlocked] = useState(() => !!readKey());
+  if (!unlocked) return <KioskLock onUnlock={() => setUnlocked(true)} />;
+  return <PhotoboothKiosk onAuthFail={() => { try { localStorage.removeItem(KEY_STORE); } catch { /* ignore */ } delete axios.defaults.headers.common["x-admin-key"]; setUnlocked(false); }} />;
+}
+
+function PhotoboothKiosk({ onAuthFail }) {
   const [config, setConfig] = useState({ couple_names: "The Happy Couple", duitnow_qr_url: "", styles: [], capture_mode: "dslr" });
   const [cameraReady, setCameraReady] = useState(false);
   const [cameraError, setCameraError] = useState("");
@@ -25,6 +64,12 @@ export default function PhotoboothPage() {
   const pollRef = useRef(null);
   const videoRef = useRef(null);
   const streamRef = useRef(null);
+
+  useEffect(() => {
+    const id = axios.interceptors.response.use((r) => r, (e) => { if (e?.response?.status === 401) onAuthFail(); return Promise.reject(e); });
+    return () => axios.interceptors.response.eject(id);
+    // eslint-disable-next-line
+  }, []);
 
   useEffect(() => {
     axios.get(`${API}/photobooth/config`).then((r) => setConfig(r.data)).catch(() => {});

@@ -51,6 +51,7 @@ export async function onRequest(context) {
     if (method === "POST" && head === "message") return handleMessage(request, env);
     if (method === "GET" && head === "entry") return handleGetEntry(env, sub);
     if (method === "GET" && head === "config") return handleConfig(env);
+    if (method === "GET" && head === "admin" && sub === "verify") return (await checkAdmin(request, env)) ? json({ ok: true }) : json({ detail: "Unauthorized" }, 401);
     if (method === "GET" && head === "admin" && sub === "gallery") return handleGallery(request, env);
     if (method === "GET" && head === "img") return handleImg(env, sub, route[2]);
     if (method === "GET" && head === "qr") return handleQrImage(env);
@@ -90,6 +91,7 @@ async function handleCaptureInbox(request, env) {
 
 // ─── Kiosk polls for the newest unclaimed photo after it started waiting ───
 async function handleClaim(request, env) {
+  if (!(await checkAdmin(request, env))) return json({ detail: "Unauthorized" }, 401);
   let b;
   try { b = await request.json(); } catch { return json({ detail: "Invalid request" }, 400); }
   const since = b.since || new Date(Date.now() - 5 * 60 * 1000).toISOString();
@@ -111,6 +113,7 @@ async function handleClaim(request, env) {
 
 // ─── Call OpenAI to transform the raw photo into the chosen style ───
 async function handleGenerate(request, env) {
+  if (!(await checkAdmin(request, env))) return json({ detail: "Unauthorized" }, 401);
   let b;
   try { b = await request.json(); } catch { return json({ detail: "Invalid request" }, 400); }
   const id = String(b.id || "");
@@ -165,6 +168,7 @@ async function handleGenerate(request, env) {
 
 // ─── Guest leaves a wish/message for the couple ───
 async function handleMessage(request, env) {
+  if (!(await checkAdmin(request, env))) return json({ detail: "Unauthorized" }, 401);
   let b;
   try { b = await request.json(); } catch { return json({ detail: "Invalid request" }, 400); }
   const id = String(b.id || "");
@@ -242,6 +246,7 @@ async function handleQrImage(env) {
 
 // ─── Guest device camera: self-capture upload, skips the DSLR claim/poll flow ───
 async function handleSelfCapture(request, env) {
+  if (!(await checkAdmin(request, env))) return json({ detail: "Unauthorized" }, 401);
   const bytes = await request.arrayBuffer();
   if (!bytes || bytes.byteLength < 100) return json({ detail: "Empty upload" }, 400);
   const id = uid();
